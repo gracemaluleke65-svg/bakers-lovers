@@ -1,0 +1,14 @@
+Flask==2.3.3
+Flask-SQLAlchemy==2.5.1  # Downgraded for compatibility
+Flask-Login==0.6.3
+Flask-WTF==1.1.1
+Flask-Session==0.5.0
+Flask-Migrate==3.1.0   # Downgraded for compatibility
+stripe==6.6.0
+Werkzeug==2.3.7
+WTForms==3.0.1
+python-dotenv==1.0.0
+gunicorn==21.2.0
+SQLAlchemy==1.4.49     # Stable 1.4.x series
+alembic==1.8.1
+typing-extensions==4.7.1

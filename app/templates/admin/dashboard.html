@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Bakers Lovers{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.3s, box-shadow 0.3s;
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    .low-stock {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .out-of-stock {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ========== TOPBAR ========== -->
+<div class="container-fluid px-0 d-none d-lg-block">
+    <div class="row gx-0">
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-envelope fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Email Us</h6>
+                    <span>hello@bakerslovers.co.za</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-primary border-inner py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                    <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-phone-vibrate fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Admin Panel</h6>
+                    <span>{{ current_user.email }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== NAVBAR ========== -->
+<nav class="navbar navbar-expand-lg bg-dark navbar-dark shadow-sm py-3 py-lg-0 px-3 px-lg-0">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand d-block d-lg-none">
+        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-primary me-3"></i>Bakers Lovers</h1>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+        <div class="navbar-nav ms-auto mx-lg-auto py-0">
+            <a href="{{ url_for('main.index') }}" class="nav-item nav-link">Home</a>
+            <a href="{{ url_for('products.index') }}" class="nav-item nav-link">Shop</a>
+            <a href="{{ url_for('admin.dashboard') }}" class="nav-item nav-link active">
+                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+            </a>
+            <div class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">Manage</a>
+                <div class="dropdown-menu dropdown-menu-dark">
+                    <a class="dropdown-item" href="{{ url_for('admin.users') }}">
+                        <i class="fas fa-users me-2"></i>Users
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('products.index') }}">
+                        <i class="fas fa-birthday-cake me-2"></i>Products
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('orders.index') }}">
+                        <i class="fas fa-shopping-bag me-2"></i>Orders
+                    </a>
+                  
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('products.create') }}">
+                        <i class="fas fa-plus-circle me-2"></i>Add Product
+                    </a>
+                </div>
+            </div>
+            
+            <!-- User Dropdown -->
+            <div class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                    <i class="fas fa-user-shield me-1"></i>Admin
+                </a>
+                <div class="dropdown-menu dropdown-menu-dark m-0">
+                    <h6 class="dropdown-header">{{ current_user.email }}</h6>
+                    <div class="dropdown-divider"></div>
+                    <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ========== PAGE HEADER ========== -->
+<div class="container-fluid bg-dark bg-img p-5 mb-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1 class="display-4 text-uppercase text-white">Admin Dashboard</h1>
+            <a href="{{ url_for('main.index') }}">Home</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <span class="text-white">Dashboard</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DASHBOARD CONTENT ========== -->
+<div class="container-fluid pb-5">
+    <div class="container">
+        <!-- Stats Row -->
+        <div class="row g-4 mb-5">
+            <!-- Total Users -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card stat-card border-0 shadow-sm bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="display-6">{{ total_users }}</h2>
+                                <h6 class="text-white-50">Total Users</h6>
+                            </div>
+                            <div>
+                                <i class="fas fa-users stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-light btn-sm">
+                                View All <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Orders -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card stat-card border-0 shadow-sm bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="display-6">{{ total_orders }}</h2>
+                                <h6 class="text-white-50">Total Orders</h6>
+                            </div>
+                            <div>
+                                <i class="fas fa-shopping-bag stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('orders.index') }}" class="btn btn-outline-light btn-sm">
+                                View Orders <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Revenue -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card stat-card border-0 shadow-sm bg-warning text-dark">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="display-6">R{{ "%.2f"|format(total_revenue) }}</h2>
+                                <h6 class="text-dark-50">Total Revenue</h6>
+                            </div>
+                            <div>
+                                <i class="fas fa-money-bill-wave stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-dark">All paid orders</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Products -->
+            <div class="col-lg-3 col-md-6">
+                <div class="card stat-card border-0 shadow-sm bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="display-6">{{ total_products }}</h2>
+                                <h6 class="text-white-50">Total Products</h6>
+                            </div>
+                            <div>
+                                <i class="fas fa-birthday-cake stat-icon"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('products.index') }}" class="btn btn-outline-light btn-sm">
+                                Manage <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <!-- Left Column: Recent Orders & Pending Orders -->
+            <div class="col-lg-8">
+                <!-- Recent Orders -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Orders</h5>
+                        <span class="badge bg-light text-dark">{{ recent_orders|length }} orders</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in recent_orders %}
+                                    <tr>
+                                        <td><strong>#{{ order.id }}</strong></td>
+                                        <td>{{ order.user.email if order.user else 'Deleted User' }}</td>
+                                        <td>{{ order.order_date.strftime('%Y-%m-%d') }}</td>
+                                        <td>R{{ "%.2f"|format(order.total_amount) }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if order.status == 'Delivered' else 'warning' if order.status == 'Pending' else 'info' if order.status == 'Baking' else 'primary' if order.status == 'Shipped' else 'secondary' }}">
+                                                {{ order.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('orders.details', id=order.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pending Orders -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Pending Orders ({{ pending_orders|length }})</h5>
+                        <span class="badge bg-danger">Action Required</span>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if pending_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Update</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in pending_orders %}
+                                    <tr>
+                                        <td><strong>#{{ order.id }}</strong></td>
+                                        <td>{{ order.user.email if order.user else 'Deleted User' }}</td>
+                                        <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>R{{ "%.2f"|format(order.total_amount) }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ url_for('orders.change_status', id=order.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                                    <option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                    <option value="Baking" {% if order.status == 'Baking' %}selected{% endif %}>Baking</option>
+                                                    <option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+                                                    <option value="Delivered" {% if order.status == 'Delivered' %}selected{% endif %}>Delivered</option>
+                                                </select>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('orders.details', id=order.id) }}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p class="text-muted">No pending orders!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: Low Stock & Quick Actions -->
+            <div class="col-lg-4">
+                <!-- Low Stock Products -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Alert</h5>
+                        <span class="badge bg-light text-dark">{{ low_stock_products|length }} items</span>
+                    </div>
+                    <div class="card-body">
+                        {% if low_stock_products %}
+                            {% for product in low_stock_products %}
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-2 rounded {% if product.stock == 0 %}out-of-stock{% else %}low-stock{% endif %}">
+                                <div>
+                                    <h6 class="mb-1">{{ product.name }}</h6>
+                                    <small class="text-muted">Category: {{ product.category }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge {% if product.stock == 0 %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                        {{ product.stock }} left
+                                    </span>
+                                    <div class="mt-1">
+                                        <a href="{{ url_for('products.edit', id=product.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <p class="text-muted">All products have sufficient stock!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('products.create') }}" class="btn btn-primary">
+                                <i class="fas fa-plus-circle me-2"></i>Add New Product
+                            </a>
+                            <a href="{{ url_for('coupons.create') }}" class="btn btn-success">
+                                <i class="fas fa-ticket-alt me-2"></i>Create Coupon
+                            </a>
+                            <a href="{{ url_for('admin.users') }}" class="btn btn-info text-white">
+                                <i class="fas fa-users me-2"></i>Manage Users
+                            </a>
+                            <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#salesReportModal">
+                                <i class="fas fa-chart-bar me-2"></i>Generate Sales Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Info -->
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>System Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="fas fa-calendar-alt text-primary me-2"></i>
+                                <strong>Date:</strong> {{ current_date.strftime('%Y-%m-%d') }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-clock text-primary me-2"></i>
+                                <strong>Time:</strong> {{ current_date.strftime('%H:%M') }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-user text-primary me-2"></i>
+                                <strong>Logged in as:</strong> {{ current_user.email }}
+                            </li>
+                            <li>
+                                <i class="fas fa-shield-alt text-primary me-2"></i>
+                                <strong>Role:</strong> Administrator
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Report Modal -->
+<!-- Sales Report Modal -->
+<div class="modal fade" id="salesReportModal" tabindex="-1" aria-labelledby="salesReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="salesReportModalLabel">
+                    <i class="fas fa-chart-bar me-2"></i>Generate Sales Report
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.generate_report') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="reportType" class="form-label">Report Type</label>
+                        <select class="form-select" id="reportType" name="report_type" required>
+                            <option value="daily">Daily Report</option>
+                            <option value="weekly">Weekly Report</option>
+                            <option value="monthly">Monthly Report</option>
+                            <option value="yearly">Yearly Report</option>
+                            <option value="custom">Custom Date Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row mb-3" id="customDateRange" style="display: none;">
+                        <div class="col-md-6">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="endDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="format" class="form-label">Export Format</label>
+                        <select class="form-select" id="format" name="format">
+                            <option value="pdf">PDF Document</option>
+                            <option value="excel">Excel Spreadsheet</option>
+                            <option value="csv">CSV File</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ========== FOOTER ========== -->
+<div class="container-fluid bg-img text-secondary" style="margin-top: 90px">
+    <div class="container">
+        <div class="row gx-5">
+            <div class="col-lg-4 col-md-6 mb-lg-n5">
+                <div class="d-flex flex-column align-items-center justify-content-center text-center h-100 bg-primary border-inner p-4">
+                    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                    </a>
+                    <p class="mt-3">Administrator Dashboard</p>
+                    <div class="d-flex mt-3">
+                        <span class="badge bg-warning text-dark">Admin Mode</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8 col-md-6">
+                <div class="row gx-5">
+                    <div class="col-lg-4 col-md-12 pt-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Admin Tools</h4>
+                        <div class="d-flex flex-column justify-content-start">
+                            <a class="text-secondary mb-2" href="{{ url_for('admin.dashboard') }}">
+                                <i class="bi bi-arrow-right text-primary me-2"></i>Dashboard
+                            </a>
+                            <a class="text-secondary mb-2" href="{{ url_for('admin.users') }}">
+                                <i class="bi bi-arrow-right text-primary me-2"></i>User Management
+                            </a>
+                            <a class="text-secondary mb-2" href="{{ url_for('orders.index') }}">
+                                <i class="bi bi-arrow-right text-primary me-2"></i>Order Management
+                            </a>
+                            <a class="text-secondary" href="{{ url_for('products.index') }}">
+                                <i class="bi bi-arrow-right text-primary me-2"></i>Product Management
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Quick Stats</h4>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-users text-primary me-2"></i>
+                                <strong>Users:</strong> {{ total_users }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-shopping-bag text-primary me-2"></i>
+                                <strong>Orders:</strong> {{ total_orders }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-birthday-cake text-primary me-2"></i>
+                                <strong>Products:</strong> {{ total_products }}
+                            </li>
+                            <li>
+                                <i class="fas fa-money-bill-wave text-primary me-2"></i>
+                                <strong>Revenue:</strong> R{{ "%.2f"|format(total_revenue) }}
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Support</h4>
+                        <p>For system issues or assistance, contact:</p>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-envelope text-primary me-2"></i>
+                            <p class="mb-0">support@bakerslovers.co.za</p>
+                        </div>
+                        <div class="d-flex">
+                            <i class="bi bi-phone text-primary me-2"></i>
+                            <p class="mb-0">+27 81 234 5678</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container-fluid text-secondary py-4" style="background: #111111;">
+    <div class="container text-center">
+        <p class="mb-0">
+            &copy; <a class="text-white border-bottom" href="#">Bakers Lovers (Pty) Ltd</a>.
+            Admin Dashboard v1.0 | Last login: {{ current_user.last_login.strftime('%Y-%m-%d %H:%M') if current_user.last_login else 'First login' }}
+        </p>
+    </div>
+</div>
+
+<!-- ========== BACK TO TOP ========== -->
+<a href="#" class="btn btn-primary border-inner py-3 fs-4 back-to-top"><i class="bi bi-arrow-up"></i></a>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Show/hide custom date range based on report type
+    document.getElementById('reportType').addEventListener('change', function() {
+        const customRange = document.getElementById('customDateRange');
+        if (this.value === 'custom') {
+            customRange.style.display = 'flex';
+        } else {
+            customRange.style.display = 'none';
+        }
+    });
+    
+    // Set default dates for custom range
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        const lastWeek = new Date();
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const lastWeekStr = lastWeek.toISOString().split('T')[0];
+        
+        document.getElementById('startDate').value = lastWeekStr;
+        document.getElementById('endDate').value = today;
+        
+        // Auto-refresh dashboard every 5 minutes
+        setTimeout(function() {
+            location.reload();
+        }, 300000); // 5 minutes
+    });
+    
+    // Confirm before critical actions
+    function confirmAction(message) {
+        return confirm(message || 'Are you sure you want to perform this action?');
+    }
+</script>
+{% endblock %}

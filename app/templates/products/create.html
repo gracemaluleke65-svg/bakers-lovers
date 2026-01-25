@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Product - Bakers Lovers{% endblock %}
+
+{% block content %}
+<!-- ========== TOPBAR (About clone) ========== -->
+<div class="container-fluid px-0 d-none d-lg-block">
+    <div class="row gx-0">
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-envelope fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Email Us</h6>
+                    <span>hello@bakerslovers.co.za</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-primary border-inner py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                    <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-phone-vibrate fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Call Us</h6>
+                    <span>+27 81 234 5678</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ========== NAVBAR (About clone) ========== -->
+<!-- ========== NAVBAR ========== -->
+<nav class="navbar navbar-expand-lg bg-dark navbar-dark shadow-sm py-3 py-lg-0 px-3 px-lg-0">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand d-block d-lg-none">
+        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-primary me-3"></i>Bakers Lovers</h1>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+        <div class="navbar-nav ms-auto mx-lg-auto py-0">
+            
+            {% if current_user.is_authenticated and current_user.is_admin %}
+                <!-- Admin Navbar (Your specified design) -->
+                <a href="{{ url_for('main.index') }}" class="nav-item nav-link">Home</a>
+                <a href="{{ url_for('products.index') }}" class="nav-item nav-link">Shop</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item nav-link active">
+                    <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                </a>
+                
+                <!-- Manage Dropdown for all admins -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">Manage</a>
+                    <div class="dropdown-menu dropdown-menu-dark">
+                        <a class="dropdown-item" href="{{ url_for('products.index') }}">
+                            <i class="fas fa-birthday-cake me-2"></i>Products
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('orders.index') }}">
+                            <i class="fas fa-shopping-bag me-2"></i>Orders
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="{{ url_for('products.create') }}">
+                            <i class="fas fa-plus-circle me-2"></i>Add Product
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Users Dropdown - visible only to main admin -->
+                {% if current_user.email == 'admin@bakerslovers.com' %}
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                            <i class="fas fa-users me-1"></i>Users
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-dark m-0">
+                            <a class="dropdown-item" href="{{ url_for('admin.users') }}">
+                                <i class="fas fa-list me-2"></i>All Users
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('admin.user_detail', user_id=current_user.id) }}">
+                                <i class="fas fa-user me-2"></i>My Profile
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- Admin Identity strip -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                        <i class="fas fa-user-shield me-1"></i>Admin
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-dark m-0">
+                        <h6 class="dropdown-header">{{ current_user.email }}</h6>
+                        <div class="dropdown-divider"></div>
+                        <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="dropdown-item">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+            {% else %}
+                <!-- Regular User Navbar (Existing design) -->
+                <a href="{{ url_for('main.index') }}" class="nav-item nav-link">Home</a>
+                <a href="{{ url_for('products.index') }}" class="nav-item nav-link">Shop Cakes</a>
+                
+                <!-- Cart and Orders - requires authentication -->
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('cart.index') }}" class="nav-item nav-link">
+                        <i class="fas fa-shopping-cart"></i> Cart
+                        <span id="cartBadge" class="badge bg-light text-dark ms-1">
+                            {% if cart and cart.items %}{{ cart.items|length }}{% endif %}
+                        </span>
+                    </a>
+                    <a href="{{ url_for('orders.index') }}" class="nav-item nav-link">My Orders</a>
+                {% endif %}
+                
+                <!-- Admin Dashboard - visible to all admins (shouldn't reach here due to first check) -->
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-item nav-link">
+                        <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                    </a>
+                {% endif %}
+                
+                <!-- Users Dropdown - visible only to main admin (shouldn't reach here due to first check) -->
+                {% if current_user.is_authenticated and current_user.email == 'admin@bakerslovers.com' %}
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                            <i class="fas fa-users me-1"></i>Users
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-dark m-0">
+                            <a class="dropdown-item" href="{{ url_for('admin.users') }}">
+                                <i class="fas fa-list me-2"></i>All Users
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('admin.user_detail', user_id=current_user.id) }}">
+                                <i class="fas fa-user me-2"></i>My Profile
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Identity strip -->
+                {% if current_user.is_authenticated %}
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">Hello {{ current_user.first_name }}!</a>
+                        <div class="dropdown-menu dropdown-menu-dark m-0">
+                            <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="dropdown-item">Logout</button>
+                            </form>
+                        </div>
+                    </div>
+                {% else %}
+                    <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                    <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<!-- ========== PAGE HEADER (same pattern as About) ========== -->
+<div class="container-fluid bg-dark bg-img p-5 mb-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1 class="display-4 text-uppercase text-white">Add New Product</h1>
+            <a href="{{ url_for('main.index') }}">Home</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <a href="{{ url_for('products.index') }}">Products</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <span class="text-white">Create</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========== CREATE PRODUCT CONTENT ========== -->
+<div class="container-fluid pb-5">
+    <div class="container">
+        <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+            
+            {% if form.errors %}
+                <div class="alert alert-danger">
+                    {% for field_name, field_errors in form.errors.items() if field_errors %}
+                        {% for error in field_errors %}
+                            <p>{{ form[field_name].label.text }}: {{ error }}</p>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <!-- LEFT COLUMN -->
+                <div class="col-lg-6">
+                    <!-- Name -->
+                    <div class="form-floating mb-3">
+                        {{ form.name(class="form-control", placeholder="Name", required=True) }}
+                        {{ form.name.label }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Category dropdown -->
+                    <div class="form-floating mb-3">
+                        {{ form.category(class="form-select", required=True) }}
+                        {{ form.category.label }}
+                        {% if form.category.errors %}
+                            <div class="text-danger">
+                                {% for error in form.category.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Size dropdown -->
+                    <div class="form-floating mb-3">
+                        {{ form.size(class="form-select", required=True) }}
+                        {{ form.size.label }}
+                        {% if form.size.errors %}
+                            <div class="text-danger">
+                                {% for error in form.size.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Stock -->
+                    <div class="form-floating mb-3">
+                        {{ form.stock(class="form-control", placeholder="Stock", min="0", required=True) }}
+                        {{ form.stock.label }}
+                        {% if form.stock.errors %}
+                            <div class="text-danger">
+                                {% for error in form.stock.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN -->
+                <div class="col-lg-6">
+                    <!-- Price -->
+                    <div class="form-floating mb-3">
+                        {{ form.price(class="form-control", placeholder="Price", min="0.01", step="0.01", required=True) }}
+                        {{ form.price.label }}
+                        {% if form.price.errors %}
+                            <div class="text-danger">
+                                {% for error in form.price.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-floating mb-3">
+                        {{ form.description(class="form-control", placeholder="Description", style="height: 120px;") }}
+                        {{ form.description.label }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Image upload -->
+                    <div class="mb-3">
+                        <label for="image_file" class="form-label">Product Image</label>
+                        {{ form.image_file(class="form-control", accept=".jpg,.jpeg,.png") }}
+                        <div class="form-text">JPG or PNG, max 4 MB</div>
+                        {% if form.image_file.errors %}
+                            <div class="text-danger">
+                                {% for error in form.image_file.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary border-inner">
+                    <i class="fa fa-chevron-left me-1"></i>Back to List
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg border-inner">
+                    <i class="fa fa-save me-1"></i>Save Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========== FOOTER (About clone) ========== -->
+<div class="container-fluid bg-img text-secondary" style="margin-top: 90px">
+    <div class="container">
+        <div class="row gx-5">
+            <div class="col-lg-4 col-md-6 mb-lg-n5">
+                <div class="d-flex flex-column align-items-center justify-content-center text-center h-100 bg-primary border-inner p-4">
+                    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                    </a>
+                    <p class="mt-3">Powered by Isithenjwa Holdings. Every celebration deserves a little more sweetness.</p>
+                    <div class="d-flex mt-3">
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-twitter fw-normal"></i></a>
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-facebook-f fw-normal"></i></a>
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-instagram fw-normal"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8 col-md-6">
+                <div class="row gx-5">
+                    <div class="col-lg-4 col-md-12 pt-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Get In Touch</h4>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-geo-alt text-primary me-2"></i>
+                            <p class="mb-0">45 Problem Mkhize Rd, Berea, Durban, 4001</p>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-envelope-open text-primary me-2"></i>
+                            <p class="mb-0">hello@bakerslovers.co.za</p>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-telephone text-primary me-2"></i>
+                            <p class="mb-0">+27 81 234 5678</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Quick Links</h4>
+                        <div class="d-flex flex-column justify-content-start">
+                            <a class="text-secondary mb-2" href="{{ url_for('main.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Home</a>
+                            <a class="text-secondary mb-2" href="{{ url_for('products.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Shop</a>
+                            <a class="text-secondary mb-2" href="{{ url_for('cart.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Cart</a>
+                            <a class="text-secondary" href="{{ url_for('main.contact') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Contact Us</a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Newsletter</h4>
+                        <p>Get R50 off your first order and a free baking tip every Friday.</p>
+                        <form id="newsletterForm">
+                            <div class="input-group">
+                                <input type="email" class="form-control border-white p-3" placeholder="Your Email" required>
+                                <button class="btn btn-primary">Sign Up</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container-fluid text-secondary py-4" style="background: #111111;">
+   <div class="container text-center">
+    <p class="mb-0">
+        &copy; <a class="text-white border-bottom" href="#">Bakers Lovers (Pty) Ltd</a>.
+        All Rights Reserved. Frontend Designed by <a class="text-white border-bottom" href="https://htmlcodex.com/demo/?item=1821" target="_blank">HTML Codex</a>.
+    </p>
+</div>
+</div>
+<!-- ========== END FOOTER ========== -->
+<!-- ========== BACK TO TOP ========== -->
+<a href="#" class="btn btn-primary border-inner py-3 fs-4 back-to-top"><i class="bi bi-arrow-up"></i></a>
+
+<script>
+    // client-side file size check (optional)
+    document.querySelector('input[type=file]').addEventListener('change', function (e) {
+        const size = e.target.files[0]?.size ?? 0;
+        const max = 4 * 1024 * 1024; // 4 MB
+        if (size > max) {
+            alert('Image must be ≤ 4 MB');
+            e.target.value = '';
+        }
+    });
+</script>
+{% endblock %}

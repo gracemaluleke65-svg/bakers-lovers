@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Users - Simple Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .admin-badge { background: red; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .user-badge { background: gray; color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Admin Users Management - Simple Test</h1>
+    
+    <p>Total Users: {{ users|length }}</p>
+    <p>Current Time: {{ now.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+    <p>Logged in as: {{ current_user.email }} (Admin: {{ current_user.is_admin }})</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Type</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if users %}
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.full_name() }}</td>
+                    <td>{{ user.phone_number }}</td>
+                    <td>
+                        {% if user.is_admin %}
+                            <span class="admin-badge">Admin</span>
+                        {% else %}
+                            <span class="user-badge">User</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: red;">
+                        NO USERS FOUND IN DATABASE!
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    
+    <p><a href="/admin/dashboard">Back to Dashboard</a></p>
+    <p><a href="/admin/test-users">Test Users (Raw HTML)</a></p>
+</body>
+</html>

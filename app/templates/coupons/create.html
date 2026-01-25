@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Create Coupon - Bakers Lovers{% endblock %}
+
+{% block content %}
+<!-- ========== PAGE HEADER ========== -->
+<div class="container-fluid bg-dark bg-img p-5 mb-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1 class="display-4 text-uppercase text-white">Create Coupon</h1>
+            <a href="{{ url_for('main.index') }}">Home</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <a href="{{ url_for('coupons.index') }}">Coupons</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <span class="text-white">Create</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========== FORM CONTENT ========== -->
+<div class="container-fluid pb-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-ticket-alt me-2"></i>Create New Coupon</h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" class="needs-validation" novalidate>
+                            {{ form.hidden_tag() }}
+                            
+                            {% with messages = get_flashed_messages(with_categories=true) %}
+                                {% if messages %}
+                                    {% for category, message in messages %}
+                                        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show">
+                                            {{ message }}
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}
+                            
+                            <div class="row g-3">
+                                <!-- Code Field -->
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        {{ form.code(class="form-control", placeholder="COUPON123") }}
+                                        {{ form.code.label(class="form-label") }}
+                                        <div class="form-text">Enter coupon code (e.g., SUMMER20)</div>
+                                        {% if form.code.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.code.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Discount Amount -->
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        {{ form.discount_amount(class="form-control", placeholder="0.00", step="0.01") }}
+                                        {{ form.discount_amount.label(class="form-label") }}
+                                        {% if form.discount_amount.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.discount_amount.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Percentage or Fixed Amount -->
+                                <div class="col-12">
+                                    <div class="form-check mb-3">
+                                        {{ form.is_percentage(class="form-check-input", id="is_percentage") }}
+                                        {{ form.is_percentage.label(class="form-check-label", for="is_percentage") }}
+                                        <div class="form-text">Check if discount is a percentage (e.g., 10%), leave unchecked for fixed amount (e.g., R50)</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Date Range -->
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        {{ form.valid_from(class="form-control", type="date") }}
+                                        {{ form.valid_from.label(class="form-label") }}
+                                        {% if form.valid_from.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.valid_from.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-floating mb-3">
+                                        {{ form.valid_to(class="form-control", type="date") }}
+                                        {{ form.valid_to.label(class="form-label") }}
+                                        {% if form.valid_to.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.valid_to.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- Active Status -->
+                                <div class="col-12">
+                                    <div class="form-check form-switch mb-4">
+                                        {{ form.active(class="form-check-input", id="active", role="switch") }}
+                                        {{ form.active.label(class="form-check-label", for="active") }}
+                                        <div class="form-text">Coupon will be available for use immediately if active</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Submit Buttons -->
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <a href="{{ url_for('coupons.index') }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                                        </a>
+                                        {{ form.submit(class="btn btn-primary btn-lg px-5") }}
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Help Card -->
+                <div class="card shadow-sm border-0 mt-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Coupon Tips</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Coupon codes are automatically converted to uppercase</li>
+                            <li>Percentage discounts: Enter value as a number (e.g., 10 for 10%)</li>
+                            <li>Fixed amount discounts: Enter value as Rand amount (e.g., 50 for R50)</li>
+                            <li>Set dates carefully - coupons only work within their validity period</li>
+                            <li>Deactivate coupons instead of deleting to preserve order history</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== FOOTER ========== -->
+{% include 'partials/_footer.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Form validation
+    (function () {
+        'use strict'
+        
+        // Fetch all the forms we want to apply custom Bootstrap validation styles to
+        var forms = document.querySelectorAll('.needs-validation')
+        
+        // Loop over them and prevent submission
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    
+                    form.classList.add('was-validated')
+                }, false)
+            })
+    })()
+    
+    // Set minimum date for valid_to to be after valid_from
+    document.addEventListener('DOMContentLoaded', function() {
+        const validFrom = document.getElementById('valid_from');
+        const validTo = document.getElementById('valid_to');
+        
+        if (validFrom && validTo) {
+            // Set initial min date for both fields to today
+            const today = new Date().toISOString().split('T')[0];
+            validFrom.min = today;
+            
+            // Set valid_to min to today initially
+            validTo.min = today;
+            
+            validFrom.addEventListener('change', function() {
+                // Set valid_to min to selected valid_from date
+                validTo.min = this.value;
+                
+                // If valid_to is before the new valid_from, reset it to valid_from
+                if (validTo.value && validTo.value < this.value) {
+                    validTo.value = this.value;
+                }
+            });
+            
+            validTo.addEventListener('change', function() {
+                // Ensure valid_to is not before valid_from
+                if (validFrom.value && this.value < validFrom.value) {
+                    this.value = validFrom.value;
+                }
+            });
+            
+            // Initialize valid_to min to valid_from value if it exists
+            if (validFrom.value) {
+                validTo.min = validFrom.value;
+            }
+        }
+        
+        // Auto-uppercase coupon code
+        const couponCode = document.getElementById('code');
+        if (couponCode) {
+            couponCode.addEventListener('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        }
+    });
+</script>
+{% endblock %}

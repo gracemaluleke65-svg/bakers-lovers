@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}My Cart - Bakers Lovers{% endblock %}
+
+{% block content %}
+<!-- ========== TOPBAR (same as About) ========== -->
+<div class="container-fluid px-0 d-none d-lg-block">
+    <div class="row gx-0">
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-envelope fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Email Us</h6>
+                    <span>hello@bakerslovers.co.za</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-primary border-inner py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                    <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-4 text-center bg-secondary py-3">
+            <div class="d-inline-flex align-items-center justify-content-center">
+                <i class="bi bi-phone-vibrate fs-1 text-primary me-3"></i>
+                <div class="text-start">
+                    <h6 class="text-uppercase mb-1">Call Us</h6>
+                    <span>+27 81 234 5678</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ========== NAVBAR (same as About) ========== -->
+<!-- ========== NAVBAR ========== -->
+<nav class="navbar navbar-expand-lg bg-dark navbar-dark shadow-sm py-3 py-lg-0 px-3 px-lg-0">
+    <a href="{{ url_for('main.index') }}" class="navbar-brand d-block d-lg-none">
+        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-primary me-3"></i>Bakers Lovers</h1>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarCollapse">
+        <div class="navbar-nav ms-auto mx-lg-auto py-0">
+            
+            {% if current_user.is_authenticated and current_user.is_admin %}
+                <!-- Admin Navbar (Your specified design) -->
+                <a href="{{ url_for('main.index') }}" class="nav-item nav-link">Home</a>
+                <a href="{{ url_for('products.index') }}" class="nav-item nav-link">Shop</a>
+                <a href="{{ url_for('admin.dashboard') }}" class="nav-item nav-link active">
+                    <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                </a>
+                
+                <!-- Manage Dropdown - visible to all admins -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">Manage</a>
+                    <div class="dropdown-menu dropdown-menu-dark">
+                        <a class="dropdown-item" href="{{ url_for('products.index') }}">
+                            <i class="fas fa-birthday-cake me-2"></i>Products
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('orders.index') }}">
+                            <i class="fas fa-shopping-bag me-2"></i>Orders
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="{{ url_for('products.create') }}">
+                            <i class="fas fa-plus-circle me-2"></i>Add Product
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Users Dropdown - visible only to main admin -->
+                {% if current_user.email == 'admin@bakerslovers.com' %}
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                            <i class="fas fa-users me-1"></i>Users
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-dark m-0">
+                            <a class="dropdown-item" href="{{ url_for('admin.users') }}">
+                                <i class="fas fa-list me-2"></i>All Users
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('admin.user_detail', user_id=current_user.id) }}">
+                                <i class="fas fa-user me-2"></i>My Profile
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <!-- Admin User Dropdown -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">
+                        <i class="fas fa-user-shield me-1"></i>Admin
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-dark m-0">
+                        <h6 class="dropdown-header">{{ current_user.email }}</h6>
+                        <div class="dropdown-divider"></div>
+                        <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="dropdown-item">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+            {% else %}
+                <!-- Regular User Navbar (Existing design) -->
+                <a href="{{ url_for('main.index') }}" class="nav-item nav-link">Home</a>
+                <a href="{{ url_for('products.index') }}" class="nav-item nav-link">Shop Cakes</a>
+                
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('cart.index') }}" class="nav-item nav-link">
+                        <i class="fas fa-shopping-cart"></i> Cart
+                        <span id="cartBadge" class="badge bg-light text-dark ms-1">
+                            {% if cart and cart.items %}{{ cart.items|length }}{% endif %}
+                        </span>
+                    </a>
+                    <a href="{{ url_for('orders.index') }}" class="nav-item nav-link">My Orders</a>
+                    <a href="{{ url_for('main.contact') }}" class="nav-item nav-link">Contact Us</a>
+                   <a href="{{ url_for('favorites.index') }}" class="nav-item nav-link">
+    <i class="fa fa-heart"></i> Wishlist
+    <span id="wishlist-count" class="badge bg-light text-dark ms-1">
+        {% if current_user.is_authenticated %}{{ current_user.favorites|length }}{% endif %}
+    </span>
+</a>
+                    
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#">Hello {{ current_user.first_name }}!</a>
+                        <div class="dropdown-menu dropdown-menu-dark m-0">
+                            <form method="POST" action="{{ url_for('auth.logout') }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="dropdown-item">Logout</button>
+                            </form>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Non-authenticated users -->
+                    <a href="{{ url_for('main.contact') }}" class="nav-item nav-link">Contact Us</a>
+                    <a href="{{ url_for('auth.register') }}" class="nav-item nav-link">Register</a>
+                    <a href="{{ url_for('auth.login') }}" class="nav-item nav-link">Login</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+
+<!-- ========== PAGE HEADER ========== -->
+<div class="container-fluid bg-dark bg-img p-5 mb-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1 class="display-4 text-uppercase text-white">My Cart</h1>
+            <a href="{{ url_for('main.index') }}">Home</a>
+            <i class="far fa-square text-primary px-2"></i>
+            <span class="text-white">Cart</span>
+        </div>
+    </div>
+</div>
+
+<!-- ========== CART CONTENT ========== -->
+<div class="container-fluid pb-5">
+    <div class="container">
+        {% if not cart.items %}
+            <div class="alert alert-warning">
+                Your cart is empty – <a href="{{ url_for('products.index') }}" class="alert-link">continue shopping</a>.
+            </div>
+        {% else %}
+            <div class="table-responsive mb-4">
+                <table class="table table-borderless align-middle bg-white shadow-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-center">Price</th>
+                            <th class="text-center">Quantity</th>
+                            <th class="text-end">Sub-total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartItems">
+                        {% for item in cart.items %}
+                            <tr data-product-id="{{ item.product_id }}">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product and item.product.image_bytes %}
+                                            <img src="data:image/jpeg;base64,{{ item.product.image_bytes | b64encode }}"
+                                                 class="rounded me-3" alt="{{ item.product_name }}" style="width:60px;height:60px;object-fit:cover;">
+                                        {% else %}
+                                            <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center"
+                                                 style="width:60px;height:60px;">
+                                                <i class="fa fa-image text-muted"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div><strong>{{ item.product_name }}</strong><br><small class="text-muted">{{ item.product.size if item.product else '' }}</small></div>
+                                    </div>
+                                </td>
+                                <td class="text-center">R <span class="unit-price">{{ "%.2f"|format(item.unit_price) }}</span></td>
+                                <td class="text-center">
+                                    <div class="d-inline-flex align-items-center">
+                                        <input type="number" name="quantity" value="{{ item.quantity }}" 
+                                               min="1" max="99" class="form-control form-control-sm w-auto quantity-input"
+                                               data-product-id="{{ item.product_id }}">
+                                        <button class="btn btn-sm btn-outline-secondary ms-2 update-btn" 
+                                                data-product-id="{{ item.product_id }}" title="Update">
+                                            <i class="fa fa-sync"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="text-end"><strong>R <span class="item-subtotal">{{ "%.2f"|format(item.unit_price * item.quantity) }}</span></strong></td>
+                                <td>
+                                    <form action="{{ url_for('cart.remove', product_id=item.product_id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="fa fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="3" class="text-end">Total:</th>
+                            <th class="text-end"><strong>R <span id="cartTotal">{{ "%.2f"|format(cart.total) }}</span></strong></th>
+                            <th></th>
+                        </tr>
+
+                        <!-- ===== COUPON LINE ===== -->
+                        {% if coupon_code %}
+                            <tr id="couponRow">
+                                <th>Coupon: {{ coupon_code }}</th>
+                                <th>-R <span id="discountAmount">{{ "%.2f"|format(discount) }}</span></th>
+                                <th>
+                                    <form action="{{ url_for('cart.remove_coupon') }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger">Remove</button>
+                                    </form>
+                                </th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        {% endif %}
+                        <!-- ===== GRAND TOTAL ===== -->
+                        <tr class="table-primary">
+                            <th colspan="3">Grand Total</th>
+                            <th><strong>R <span id="grandTotal">{{ "%.2f"|format(grand_total) }}</span></strong></th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- COUPON BOX -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <form action="{{ url_for('cart.apply_coupon') }}" method="POST" class="d-flex">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input name="code" class="form-control form-control-sm me-2" placeholder="Coupon code" required>
+                        <button class="btn btn-sm btn-primary">Apply</button>
+                    </form>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category if category != 'error' else 'danger' }} mt-2">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('products.index') }}" class="btn btn-outline-primary">
+                    <i class="fa fa-chevron-left me-1"></i>Continue Shopping
+                </a>
+                <a href="{{ url_for('checkout.index') }}" class="btn btn-primary btn-lg">
+                    Proceed to Checkout <i class="fa fa-chevron-right ms-1"></i>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========== FOOTER (identical to About) ========== -->
+<div class="container-fluid bg-img text-secondary" style="margin-top: 90px">
+    <div class="container">
+        <div class="row gx-5">
+            <div class="col-lg-4 col-md-6 mb-lg-n5">
+                <div class="d-flex flex-column align-items-center justify-content-center text-center h-100 bg-primary border-inner p-4">
+                    <a href="{{ url_for('main.index') }}" class="navbar-brand">
+                        <h1 class="m-0 text-uppercase text-white"><i class="fa fa-birthday-cake fs-1 text-dark me-3"></i>Bakers Lovers</h1>
+                    </a>
+                    <p class="mt-3">Powered by Isithenjwa Holdings. Every celebration deserves a little more sweetness.</p>
+                    <div class="d-flex mt-3">
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-twitter fw-normal"></i></a>
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-facebook-f fw-normal"></i></a>
+                        <a class="btn btn-lg btn-primary btn-lg-square border-inner rounded-0 me-2" href="#"><i class="fab fa-instagram fw-normal"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-8 col-md-6">
+                <div class="row gx-5">
+                    <div class="col-lg-4 col-md-12 pt-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Get In Touch</h4>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-geo-alt text-primary me-2"></i>
+                            <p class="mb-0">45 Problem Mkhize Rd, Berea, Durban, 4001</p>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-envelope-open text-primary me-2"></i>
+                            <p class="mb-0">hello@bakerslovers.co.za</p>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <i class="bi bi-telephone text-primary me-2"></i>
+                            <p class="mb-0">+27 81 234 5678</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Quick Links</h4>
+                        <div class="d-flex flex-column justify-content-start">
+                            <a class="text-secondary mb-2" href="{{ url_for('main.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Home</a>
+                            <a class="text-secondary mb-2" href="{{ url_for('products.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Shop</a>
+                            <a class="text-secondary mb-2" href="{{ url_for('cart.index') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Cart</a>
+                            <a class="text-secondary" href="{{ url_for('main.contact') }}"><i class="bi bi-arrow-right text-primary me-2"></i>Contact Us</a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-12 pt-0 pt-lg-5 mb-5">
+                        <h4 class="text-primary text-uppercase mb-4">Newsletter</h4>
+                        <p>Get R50 off your first order and a free baking tip every Friday.</p>
+                        <form id="newsletterForm">
+                            <div class="input-group">
+                                <input type="email" class="form-control border-white p-3" placeholder="Your Email" required>
+                                <button class="btn btn-primary">Sign Up</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container-fluid text-secondary py-4" style="background: #111111;">
+   <div class="container text-center">
+    <p class="mb-0">
+        &copy; <a class="text-white border-bottom" href="#">Bakers Lovers (Pty) Ltd</a>.
+        All Rights Reserved. Frontend Designed by <a class="text-white border-bottom" href="https://htmlcodex.com/demo/?item=1821" target="_blank">HTML Codex</a>.
+    </p>
+</div>
+</div>
+
+<!-- ========== BACK TO TOP ========== -->
+<a href="#" class="btn btn-primary border-inner py-3 fs-4 back-to-top"><i class="bi bi-arrow-up"></i></a>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// Real-time cart updates
+$(document).ready(function() {
+    // Update quantity when input changes or button is clicked
+    $('.quantity-input, .update-btn').on('change click', function(e) {
+        e.preventDefault();
+        var productId = $(this).data('product-id') || $(this).siblings('.quantity-input').data('product-id');
+        var quantity = $(this).siblings('.quantity-input').val() || $(this).val();
+        
+        if (!productId || !quantity) return;
+        
+        updateCartItem(productId, quantity);
+    });
+    
+    function updateCartItem(productId, quantity) {
+        $.ajax({
+            url: '/cart/update/' + productId,
+            method: 'POST',
+            data: {
+                quantity: quantity,
+                csrf_token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Update item subtotal
+                    $('tr[data-product-id="' + productId + '"] .item-subtotal').text(response.item_subtotal.toFixed(2));
+                    
+                    // Update cart totals
+                    $('#cartTotal').text(response.cart_total.toFixed(2));
+                    $('#discountAmount').text(response.discount.toFixed(2));
+                    $('#grandTotal').text(response.grand_total.toFixed(2));
+                    
+                    // Update cart badge
+                    $('#cartBadge').text(response.item_count);
+                    
+                    // Show success message briefly
+                    showNotification('Cart updated successfully!', 'success');
+                }
+            },
+            error: function(xhr) {
+                var error = xhr.responseJSON ? xhr.responseJSON.error : 'Error updating cart';
+                showNotification(error, 'error');
+                
+                // Reset quantity to previous value
+                location.reload();
+            }
+        });
+    }
+    
+    function showNotification(message, type) {
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var notification = $('<div class="alert ' + alertClass + ' position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 9999;">' + message + '</div>');
+        $('body').append(notification);
+        
+        setTimeout(function() {
+            notification.fadeOut(function() {
+                $(this).remove();
+            });
+        }, 3000);
+    }
+    
+    // Simple cart functionality - update badge on page load
+    fetch('{{ url_for("cart.get_count") }}')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('cartBadge').textContent = data.count;
+        });
+});
+</script>
+
+{% endblock %}
