@@ -73,3 +73,32 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.index'))
+
+
+@bp.route('/reset-admin')
+def reset_admin():
+    """Temporary route to reset admin password"""
+    from app.models import User
+    from werkzeug.security import generate_password_hash
+    import os
+    
+    admin = User.query.filter_by(email='admin@bakerslovers.com').first()
+    if admin:
+        admin.password_hash = generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'Admin@123'))
+        db.session.commit()
+        return "Admin password reset successfully! You can now login with: admin@bakerslovers.com / " + os.environ.get('ADMIN_PASSWORD', 'Admin@123')
+    else:
+        # Create admin
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
+        new_admin = User(
+            email='admin@bakerslovers.com',
+            password_hash=generate_password_hash(admin_password),
+            first_name='Admin',
+            last_name='User',
+            phone_number='0123456789',
+            id_number='1234567890123',
+            is_admin=True
+        )
+        db.session.add(new_admin)
+        db.session.commit()
+        return "Admin created! Login with: admin@bakerslovers.com / " + admin_password
