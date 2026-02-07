@@ -1,4 +1,4 @@
-# run.py - Complete database schema fix for all tables
+# run.py - Complete database cleanup
 import os
 from app import create_app, db
 from app.models import User, Product, Order, OrderItem, CartItem, Coupon, Favorite, Feedback, Payment
@@ -18,153 +18,112 @@ def make_shell_context():
         'Favorite': Favorite, 'Feedback': Feedback, 'Payment': Payment
     }
 
-def check_and_fix_table(table_name, required_columns):
-    """Check table and add missing columns"""
+def get_table_columns(table_name):
+    """Get current columns in a table"""
     try:
         inspector = inspect(db.engine)
-        existing_cols = {col['name'] for col in inspector.get_columns(table_name)}
-        
-        missing = set(required_columns.keys()) - existing_cols
-        if missing:
-            print(f"\n  Fixing {table_name}: missing {missing}")
-            with db.engine.connect() as conn:
-                for col in missing:
-                    col_type = required_columns[col]
-                    try:
-                        conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {col} {col_type}'))
-                        conn.commit()
-                        print(f"    ✅ Added {col}")
-                    except Exception as e:
-                        print(f"    ⚠️ Could not add {col}: {e}")
-            return True
-        return False
-    except Exception as e:
-        print(f"  ❌ Error checking {table_name}: {e}")
-        return False
+        return {col['name']: col for col in inspector.get_columns(table_name)}
+    except:
+        return {}
 
-# Database schema fix
+# Database cleanup and fix
 with app.app_context():
     print("=" * 60)
-    print("COMPREHENSIVE DATABASE SCHEMA FIX")
+    print("DATABASE CLEANUP & FIX")
     print("=" * 60)
     
     try:
-        # Fix all tables
-        print("\n🔧 Checking and fixing all tables...")
+        # ========== FIX FAVORITE TABLE ==========
+        print("\n🔧 Fixing 'favorite' table...")
+        fav_cols = get_table_columns('favorite')
+        print(f"   Current columns: {list(fav_cols.keys())}")
         
-        # User table
-        check_and_fix_table('user', {
-            'first_name': 'VARCHAR(100) DEFAULT \'User\'',
-            'last_name': 'VARCHAR(100) DEFAULT \'Unknown\'',
-            'phone_number': 'VARCHAR(10) DEFAULT \'0000000000\'',
-            'id_number': 'VARCHAR(13)',
-            'last_login': 'TIMESTAMP',
-            'is_admin': 'BOOLEAN DEFAULT FALSE'
-        })
+        with db.engine.connect() as conn:
+            # Drop old columns that shouldn't exist
+            old_columns = ['accommodation_id', 'accommodation_admin_id']  # Old schema columns
+            for old_col in old_columns:
+                if old_col in fav_cols:
+                    try:
+                        conn.execute(text(f'ALTER TABLE favorite DROP COLUMN {old_col}'))
+                        conn.commit()
+                        print(f"   ✅ Dropped old column: {old_col}")
+                    except Exception as e:
+                        print(f"   ⚠️ Could not drop {old_col}: {e}")
+            
+            # Ensure correct columns exist
+            if 'id' not in fav_cols:
+                conn.execute(text('ALTER TABLE favorite ADD COLUMN id SERIAL PRIMARY KEY'))
+                conn.commit()
+                print("   ✅ Added id column")
+            
+            if 'user_id' not in fav_cols:
+                conn.execute(text('ALTER TABLE favorite ADD COLUMN user_id INTEGER REFERENCES "user"(id)'))
+                conn.commit()
+                print("   ✅ Added user_id column")
+            
+            if 'product_id' not in fav_cols:
+                conn.execute(text('ALTER TABLE favorite ADD COLUMN product_id INTEGER REFERENCES product(id)'))
+                conn.commit()
+                print("   ✅ Added product_id column")
+            
+            if 'added_at' not in fav_cols:
+                conn.execute(text('ALTER TABLE favorite ADD COLUMN added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+                conn.commit()
+                print("   ✅ Added added_at column")
         
-        # Favorite table - THIS IS THE ONE CAUSING THE ERROR
-        check_and_fix_table('favorite', {
-            'id': 'SERIAL PRIMARY KEY',
-            'user_id': 'INTEGER REFERENCES "user"(id)',
-            'product_id': 'INTEGER REFERENCES product(id)',
-            'added_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-        })
+        # ========== FIX USER TABLE ==========
+        print("\n🔧 Fixing 'user' table...")
+        user_cols = get_table_columns('user')
         
-        # Order table
-        check_and_fix_table('order', {
-            'user_id': 'INTEGER REFERENCES "user"(id)',
-            'order_date': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'total_amount': 'FLOAT NOT NULL',
-            'status': 'VARCHAR(50) DEFAULT \'Pending\'',
-            'payment_status': 'VARCHAR(50) DEFAULT \'Pending\'',
-            'stripe_session_id': 'VARCHAR(200)',
-            'delivery_address': 'TEXT NOT NULL',
-            'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-        })
+        with db.engine.connect() as conn:
+            # Drop old columns
+            old_user_cols = ['full_name', 'student_number', 'phone']
+            for old_col in old_user_cols:
+                if old_col in user_cols:
+                    try:
+                        conn.execute(text(f'ALTER TABLE "user" DROP COLUMN {old_col}'))
+                        conn.commit()
+                        print(f"   ✅ Dropped old column: {old_col}")
+                    except:
+                        pass
+            
+            # Ensure required columns
+            required = {
+                'first_name': 'VARCHAR(100) DEFAULT \'User\' NOT NULL',
+                'last_name': 'VARCHAR(100) DEFAULT \'Unknown\' NOT NULL',
+                'phone_number': 'VARCHAR(10) DEFAULT \'0000000000\' NOT NULL',
+                'id_number': 'VARCHAR(13) UNIQUE NOT NULL',
+                'last_login': 'TIMESTAMP'
+            }
+            
+            for col, col_type in required.items():
+                if col not in user_cols:
+                    conn.execute(text(f'ALTER TABLE "user" ADD COLUMN {col} {col_type}'))
+                    conn.commit()
+                    print(f"   ✅ Added {col}")
         
-        # OrderItem table
-        check_and_fix_table('order_item', {
-            'order_id': 'INTEGER REFERENCES "order"(id)',
-            'product_id': 'INTEGER REFERENCES product(id)',
-            'quantity': 'INTEGER NOT NULL',
-            'unit_price': 'FLOAT NOT NULL'
-        })
-        
-        # CartItem table
-        check_and_fix_table('cart_item', {
-            'session_id': 'VARCHAR(255) NOT NULL',
-            'product_id': 'INTEGER REFERENCES product(id)',
-            'product_name': 'VARCHAR(150) NOT NULL',
-            'unit_price': 'FLOAT NOT NULL',
-            'quantity': 'INTEGER DEFAULT 1',
-            'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-        })
-        
-        # Feedback table
-        check_and_fix_table('feedback', {
-            'user_id': 'INTEGER REFERENCES "user"(id)',
-            'order_id': 'INTEGER REFERENCES "order"(id)',
-            'rating': 'INTEGER NOT NULL',
-            'comment': 'TEXT DEFAULT \'\'',
-            'submitted_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
-        })
-        
-        # Payment table
-        check_and_fix_table('payment', {
-            'order_id': 'INTEGER REFERENCES "order"(id)',
-            'stripe_payment_intent_id': 'VARCHAR(100) NOT NULL',
-            'amount': 'FLOAT NOT NULL',
-            'paid_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-            'status': 'VARCHAR(50) DEFAULT \'Succeeded\''
-        })
-        
-        # Product table (less likely to have issues but check anyway)
-        check_and_fix_table('product', {
-            'name': 'VARCHAR(150) NOT NULL',
-            'description': 'TEXT DEFAULT \'\'',
-            'category': 'VARCHAR(100) DEFAULT \'Birthday\'',
-            'size': 'VARCHAR(50) DEFAULT \'6-inch\'',
-            'stock': 'INTEGER DEFAULT 0',
-            'price': 'FLOAT NOT NULL',
-            'image_bytes': 'BYTEA',
-            'available': 'BOOLEAN DEFAULT TRUE'
-        })
-        
-        # Coupon table
-        check_and_fix_table('coupon', {
-            'code': 'VARCHAR(20) UNIQUE NOT NULL',
-            'discount_amount': 'FLOAT NOT NULL',
-            'is_percentage': 'BOOLEAN DEFAULT FALSE',
-            'valid_from': 'TIMESTAMP NOT NULL',
-            'valid_to': 'TIMESTAMP NOT NULL',
-            'active': 'BOOLEAN DEFAULT TRUE'
-        })
-        
-        print("\n✅ Schema fix complete!")
-        
-        # Now handle admin user
-        print("\n👤 Checking admin user...")
+        # ========== ADMIN USER SETUP ==========
+        print("\n👤 Setting up admin user...")
         admin_email = 'admin@bakerslovers.com'
         admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
         
-        # List all users
+        # Check all users
         all_users = User.query.all()
         print(f"   Total users: {len(all_users)}")
         for u in all_users:
-            print(f"   - ID:{u.id} {u.email} (Admin:{u.is_admin})")
+            print(f"   - ID:{u.id} {u.email}")
         
         # Find or create admin
         admin = User.query.filter_by(email=admin_email).first()
         
         if not admin:
-            # Check if any user has admin id_number
+            # Check if any user has the admin id_number
             admin = User.query.filter_by(id_number='1234567890123').first()
             if admin:
-                print(f"   Found user with admin ID, updating email...")
+                print(f"   Found user with admin ID, updating to {admin_email}")
                 admin.email = admin_email
             else:
-                print(f"   Creating new admin...")
-                # Generate unique id_number
+                print("   Creating new admin...")
                 import random
                 while True:
                     new_id = f'ADMIN{random.randint(1000000000000, 9999999999999)}'
@@ -182,25 +141,16 @@ with app.app_context():
                 )
                 db.session.add(admin)
         
-        # Update admin credentials
+        # Update admin
         admin.password_hash = generate_password_hash(admin_password)
         admin.is_admin = True
-        if not admin.first_name:
-            admin.first_name = 'Admin'
-        if not admin.last_name:
-            admin.last_name = 'User'
-        if not admin.phone_number:
-            admin.phone_number = '0123456789'
-        
         db.session.commit()
         
-        print(f"\n✅ Admin ready:")
-        print(f"   Email: {admin_email}")
-        print(f"   Password: {admin_password}")
+        print(f"   ✅ Admin ready: {admin_email} / {admin_password}")
         
-        # Seed products if none
+        # ========== SEED DATA ==========
         if Product.query.count() == 0:
-            print("\n📦 Creating sample products...")
+            print("\n📦 Creating products...")
             products = [
                 Product(name='Chocolate Birthday Cake', description='Rich chocolate cake', category='Birthday', size='8-inch', stock=10, price=450.00, available=True),
                 Product(name='Wedding Vanilla Cake', description='Elegant vanilla cake', category='Wedding', size='3-tier', stock=5, price=2500.00, available=True),
@@ -209,23 +159,19 @@ with app.app_context():
             for p in products:
                 db.session.add(p)
             db.session.commit()
-            print("   ✅ Sample products created")
+            print("   ✅ Products created")
         
-        # Seed coupon if none
         if Coupon.query.count() == 0:
-            print("\n🎟️ Creating sample coupon...")
+            print("\n🎟️ Creating coupon...")
             coupon = Coupon(code='BAKERS10', discount_amount=10, is_percentage=True, valid_from=datetime.utcnow() - timedelta(days=1), valid_to=datetime.utcnow() + timedelta(days=30), active=True)
             db.session.add(coupon)
             db.session.commit()
-            print("   ✅ Sample coupon created")
+            print("   ✅ Coupon created")
         
         print("\n" + "=" * 60)
-        print("DATABASE READY")
+        print("✅ DATABASE READY")
         print("=" * 60)
-        print(f"\n🔑 ADMIN LOGIN:")
-        print(f"   https://bakers-lovers.onrender.com/auth/login")
-        print(f"   Email: {admin_email}")
-        print(f"   Password: {admin_password}")
+        print(f"\n🔑 Login: {admin_email} / {admin_password}")
         print("=" * 60)
         
     except Exception as e:
