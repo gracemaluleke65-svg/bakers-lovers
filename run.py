@@ -1,4 +1,4 @@
-# run.py - Fix existing admin user
+# run.py - Complete database schema fix for all tables
 import os
 from app import create_app, db
 from app.models import User, Product, Order, OrderItem, CartItem, Coupon, Favorite, Feedback, Payment
@@ -18,93 +18,187 @@ def make_shell_context():
         'Favorite': Favorite, 'Feedback': Feedback, 'Payment': Payment
     }
 
-# Database schema and admin fix
+def check_and_fix_table(table_name, required_columns):
+    """Check table and add missing columns"""
+    try:
+        inspector = inspect(db.engine)
+        existing_cols = {col['name'] for col in inspector.get_columns(table_name)}
+        
+        missing = set(required_columns.keys()) - existing_cols
+        if missing:
+            print(f"\n  Fixing {table_name}: missing {missing}")
+            with db.engine.connect() as conn:
+                for col in missing:
+                    col_type = required_columns[col]
+                    try:
+                        conn.execute(text(f'ALTER TABLE {table_name} ADD COLUMN {col} {col_type}'))
+                        conn.commit()
+                        print(f"    ✅ Added {col}")
+                    except Exception as e:
+                        print(f"    ⚠️ Could not add {col}: {e}")
+            return True
+        return False
+    except Exception as e:
+        print(f"  ❌ Error checking {table_name}: {e}")
+        return False
+
+# Database schema fix
 with app.app_context():
     print("=" * 60)
-    print("DATABASE ADMIN UTILITY")
+    print("COMPREHENSIVE DATABASE SCHEMA FIX")
     print("=" * 60)
     
     try:
-        # Check existing users
-        all_users = User.query.all()
-        print(f"\nTotal users in database: {len(all_users)}")
+        # Fix all tables
+        print("\n🔧 Checking and fixing all tables...")
         
-        for user in all_users:
-            print(f"  - ID: {user.id}, Email: {user.email}, Admin: {user.is_admin}, ID Num: {user.id_number}")
+        # User table
+        check_and_fix_table('user', {
+            'first_name': 'VARCHAR(100) DEFAULT \'User\'',
+            'last_name': 'VARCHAR(100) DEFAULT \'Unknown\'',
+            'phone_number': 'VARCHAR(10) DEFAULT \'0000000000\'',
+            'id_number': 'VARCHAR(13)',
+            'last_login': 'TIMESTAMP',
+            'is_admin': 'BOOLEAN DEFAULT FALSE'
+        })
         
-        # Admin credentials
+        # Favorite table - THIS IS THE ONE CAUSING THE ERROR
+        check_and_fix_table('favorite', {
+            'id': 'SERIAL PRIMARY KEY',
+            'user_id': 'INTEGER REFERENCES "user"(id)',
+            'product_id': 'INTEGER REFERENCES product(id)',
+            'added_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        })
+        
+        # Order table
+        check_and_fix_table('order', {
+            'user_id': 'INTEGER REFERENCES "user"(id)',
+            'order_date': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'total_amount': 'FLOAT NOT NULL',
+            'status': 'VARCHAR(50) DEFAULT \'Pending\'',
+            'payment_status': 'VARCHAR(50) DEFAULT \'Pending\'',
+            'stripe_session_id': 'VARCHAR(200)',
+            'delivery_address': 'TEXT NOT NULL',
+            'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        })
+        
+        # OrderItem table
+        check_and_fix_table('order_item', {
+            'order_id': 'INTEGER REFERENCES "order"(id)',
+            'product_id': 'INTEGER REFERENCES product(id)',
+            'quantity': 'INTEGER NOT NULL',
+            'unit_price': 'FLOAT NOT NULL'
+        })
+        
+        # CartItem table
+        check_and_fix_table('cart_item', {
+            'session_id': 'VARCHAR(255) NOT NULL',
+            'product_id': 'INTEGER REFERENCES product(id)',
+            'product_name': 'VARCHAR(150) NOT NULL',
+            'unit_price': 'FLOAT NOT NULL',
+            'quantity': 'INTEGER DEFAULT 1',
+            'created_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        })
+        
+        # Feedback table
+        check_and_fix_table('feedback', {
+            'user_id': 'INTEGER REFERENCES "user"(id)',
+            'order_id': 'INTEGER REFERENCES "order"(id)',
+            'rating': 'INTEGER NOT NULL',
+            'comment': 'TEXT DEFAULT \'\'',
+            'submitted_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+        })
+        
+        # Payment table
+        check_and_fix_table('payment', {
+            'order_id': 'INTEGER REFERENCES "order"(id)',
+            'stripe_payment_intent_id': 'VARCHAR(100) NOT NULL',
+            'amount': 'FLOAT NOT NULL',
+            'paid_at': 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+            'status': 'VARCHAR(50) DEFAULT \'Succeeded\''
+        })
+        
+        # Product table (less likely to have issues but check anyway)
+        check_and_fix_table('product', {
+            'name': 'VARCHAR(150) NOT NULL',
+            'description': 'TEXT DEFAULT \'\'',
+            'category': 'VARCHAR(100) DEFAULT \'Birthday\'',
+            'size': 'VARCHAR(50) DEFAULT \'6-inch\'',
+            'stock': 'INTEGER DEFAULT 0',
+            'price': 'FLOAT NOT NULL',
+            'image_bytes': 'BYTEA',
+            'available': 'BOOLEAN DEFAULT TRUE'
+        })
+        
+        # Coupon table
+        check_and_fix_table('coupon', {
+            'code': 'VARCHAR(20) UNIQUE NOT NULL',
+            'discount_amount': 'FLOAT NOT NULL',
+            'is_percentage': 'BOOLEAN DEFAULT FALSE',
+            'valid_from': 'TIMESTAMP NOT NULL',
+            'valid_to': 'TIMESTAMP NOT NULL',
+            'active': 'BOOLEAN DEFAULT TRUE'
+        })
+        
+        print("\n✅ Schema fix complete!")
+        
+        # Now handle admin user
+        print("\n👤 Checking admin user...")
         admin_email = 'admin@bakerslovers.com'
         admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
         
-        # Check if admin exists by email
-        admin_by_email = User.query.filter_by(email=admin_email).first()
+        # List all users
+        all_users = User.query.all()
+        print(f"   Total users: {len(all_users)}")
+        for u in all_users:
+            print(f"   - ID:{u.id} {u.email} (Admin:{u.is_admin})")
         
-        # Check if any user has the default id_number
-        admin_by_id = User.query.filter_by(id_number='1234567890123').first()
+        # Find or create admin
+        admin = User.query.filter_by(email=admin_email).first()
         
-        if admin_by_email:
-            print(f"\n✅ Found admin by email (ID: {admin_by_email.id})")
-            admin = admin_by_email
-            # Update password and ensure is_admin is True
-            admin.password_hash = generate_password_hash(admin_password)
-            admin.is_admin = True
-            if not admin.first_name:
-                admin.first_name = 'Admin'
-            if not admin.last_name:
-                admin.last_name = 'User'
-            if not admin.phone_number:
-                admin.phone_number = '0123456789'
-            db.session.commit()
-            print(f"✅ Admin updated! Password: {admin_password}")
-            
-        elif admin_by_id:
-            print(f"\n⚠️ Found user with admin id_number but different email (ID: {admin_by_id.id})")
-            print(f"   Current email: {admin_by_id.email}")
-            # Update this user to be the admin
-            admin_by_id.email = admin_email
-            admin_by_id.password_hash = generate_password_hash(admin_password)
-            admin_by_id.is_admin = True
-            admin_by_id.first_name = 'Admin'
-            admin_by_id.last_name = 'User'
-            admin_by_id.phone_number = '0123456789'
-            db.session.commit()
-            print(f"✅ Converted to admin! Email: {admin_email}, Password: {admin_password}")
-            
-        else:
-            print(f"\n⚠️ No admin found - creating new one...")
-            # Find a unique id_number
-            import random
-            while True:
-                new_id = f'ADMIN{random.randint(1000000000000, 9999999999999)}'
-                if not User.query.filter_by(id_number=new_id).first():
-                    break
-            
-            new_admin = User(
-                email=admin_email,
-                password_hash=generate_password_hash(admin_password),
-                first_name='Admin',
-                last_name='User',
-                phone_number='0123456789',
-                id_number=new_id,
-                is_admin=True
-            )
-            db.session.add(new_admin)
-            db.session.commit()
-            print(f"✅ New admin created!")
-            print(f"   Email: {admin_email}")
-            print(f"   Password: {admin_password}")
-            print(f"   ID Number: {new_id}")
+        if not admin:
+            # Check if any user has admin id_number
+            admin = User.query.filter_by(id_number='1234567890123').first()
+            if admin:
+                print(f"   Found user with admin ID, updating email...")
+                admin.email = admin_email
+            else:
+                print(f"   Creating new admin...")
+                # Generate unique id_number
+                import random
+                while True:
+                    new_id = f'ADMIN{random.randint(1000000000000, 9999999999999)}'
+                    if not User.query.filter_by(id_number=new_id).first():
+                        break
+                
+                admin = User(
+                    email=admin_email,
+                    password_hash=generate_password_hash(admin_password),
+                    first_name='Admin',
+                    last_name='User',
+                    phone_number='0123456789',
+                    id_number=new_id,
+                    is_admin=True
+                )
+                db.session.add(admin)
         
-        # Verify final state
-        final_check = User.query.filter_by(email=admin_email).first()
-        if final_check:
-            print(f"\n🔑 FINAL ADMIN LOGIN DETAILS:")
-            print(f"   URL: https://bakers-lovers.onrender.com/auth/login")
-            print(f"   Email: {admin_email}")
-            print(f"   Password: {admin_password}")
-            print(f"   Is Admin: {final_check.is_admin}")
+        # Update admin credentials
+        admin.password_hash = generate_password_hash(admin_password)
+        admin.is_admin = True
+        if not admin.first_name:
+            admin.first_name = 'Admin'
+        if not admin.last_name:
+            admin.last_name = 'User'
+        if not admin.phone_number:
+            admin.phone_number = '0123456789'
         
-        # Seed products if none exist
+        db.session.commit()
+        
+        print(f"\n✅ Admin ready:")
+        print(f"   Email: {admin_email}")
+        print(f"   Password: {admin_password}")
+        
+        # Seed products if none
         if Product.query.count() == 0:
             print("\n📦 Creating sample products...")
             products = [
@@ -115,22 +209,27 @@ with app.app_context():
             for p in products:
                 db.session.add(p)
             db.session.commit()
-            print("✅ Sample products created")
+            print("   ✅ Sample products created")
         
-        # Seed coupon if none exist
+        # Seed coupon if none
         if Coupon.query.count() == 0:
             print("\n🎟️ Creating sample coupon...")
             coupon = Coupon(code='BAKERS10', discount_amount=10, is_percentage=True, valid_from=datetime.utcnow() - timedelta(days=1), valid_to=datetime.utcnow() + timedelta(days=30), active=True)
             db.session.add(coupon)
             db.session.commit()
-            print("✅ Sample coupon created (BAKERS10 - 10% off)")
+            print("   ✅ Sample coupon created")
         
         print("\n" + "=" * 60)
-        print("SETUP COMPLETE")
+        print("DATABASE READY")
+        print("=" * 60)
+        print(f"\n🔑 ADMIN LOGIN:")
+        print(f"   https://bakers-lovers.onrender.com/auth/login")
+        print(f"   Email: {admin_email}")
+        print(f"   Password: {admin_password}")
         print("=" * 60)
         
     except Exception as e:
-        print(f"\n❌ CRITICAL ERROR: {e}")
+        print(f"\n❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
 
