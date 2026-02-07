@@ -38,14 +38,18 @@
             </li>
         </ul>
 
-        <!-- ♥ WISH-LIST (same style as catalogue) -->
+        <!-- ♥ WISH-LIST - COMING SOON -->
         <div class="mb-2">
-            <button class="btn btn-sm btn-outline-danger favourite-btn"
-                    data-id="{{ product.id }}" 
-                    data-csrf="{{ csrf_token() }}"
-                    title="Add to wishlist">
-                <i class="fa fa-heart-o"></i>
+            <button class="btn btn-sm btn-outline-danger wishlist-coming-soon" 
+                    type="button" 
+                    title="Add to wishlist"
+                    data-product-id="{{ product.id }}">
+                <i class="far fa-heart"></i>
+                <span class="ms-1">Add to Wishlist</span>
             </button>
+            <span class="wishlist-message text-info small ms-2" style="display: none;">
+                <i class="fas fa-clock"></i> Coming soon!
+            </span>
         </div>
 
         <!-- === ACTION BUTTONS (same colours & borders) === -->
@@ -64,28 +68,23 @@
     </div>
 </div>
 {% endmacro %}
-\
 
-<!-- === AJAX TOGGLE (one snippet for whole page) === -->
+<!-- === WISH-LIST COMING SOON SCRIPT === -->
 <script>
-    $(".favourite-btn").on("click", function () {
-        var btn = $(this);
-        var id  = btn.data("id");
-        var csrfToken = btn.data("csrf");
-        
-        $.ajax({
-            url: "{{ url_for('favorites.toggle', product_id=0) }}".slice(0, -1) + id,
-            type: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken
-            },
-            success: function(res) {
-                btn.find("i").toggleClass("fa-heart-o", !res.favourited)
-                             .toggleClass("fa-heart", res.favourited);
-            },
-            error: function(xhr, status, error) {
-                console.error('Error toggling favorite:', error);
-            }
+    $(document).ready(function() {
+        $(".wishlist-coming-soon").on("click", function (e) {
+            e.preventDefault();
+            var btn = $(this);
+            var message = btn.siblings(".wishlist-message");
+            
+            // Show the coming soon message
+            message.fadeIn(200).delay(2000).fadeOut(200);
+            
+            // Optional: animate the heart icon
+            btn.find("i").removeClass("far fa-heart").addClass("fas fa-heart");
+            setTimeout(function() {
+                btn.find("i").removeClass("fas fa-heart").addClass("far fa-heart");
+            }, 1000);
         });
     });
 </script>
