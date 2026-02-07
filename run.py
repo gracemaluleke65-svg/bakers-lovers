@@ -1,4 +1,4 @@
-# run.py - Fix mixed database schema
+# run.py - Fix database schema by removing old full_name column
 import os
 from app import create_app, db
 from app.models import User, Product, Order, OrderItem, CartItem, Coupon, Favorite, Feedback, Payment
@@ -26,114 +26,118 @@ with app.app_context():
     
     try:
         inspector = inspect(db.engine)
-        columns = {col['name']: col for col in inspector.get_columns('user')}
-        print(f"Existing columns: {list(columns.keys())}")
-        
-        # Check if we have the old schema (full_name) mixed with new
-        has_full_name = 'full_name' in columns
-        has_first_name = 'first_name' in columns
+        columns_info = inspector.get_columns('user')
+        columns = {col['name']: col for col in columns_info}
+        column_names = list(columns.keys())
+        print(f"Existing columns: {column_names}")
         
         with db.engine.connect() as conn:
             
-            # Case 1: Has full_name but missing first_name/last_name
-            if has_full_name and not has_first_name:
-                print("Detected old schema with full_name, migrating...")
+            # Step 1: Handle the problematic full_name column
+            if 'full_name' in columns:
+                print("\n⚠️ Found old 'full_name' column - migrating data...")
                 
-                # Add first_name and last_name columns (nullable first)
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN first_name VARCHAR(100)'))
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN last_name VARCHAR(100)'))
+                # If we don't have first_name/last_name, create them first
+                if 'first_name' not in columns:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN first_name VARCHAR(100)'))
+                    print("✅ Added first_name")
+                
+                if 'last_name' not in columns:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN last_name VARCHAR(100)'))
+                    print("✅ Added last_name")
+                
                 conn.commit()
-                print("✅ Added first_name and last_name columns")
                 
-                # Migrate data from full_name to first_name/last_name
-                conn.execute(text('UPDATE "user" SET first_name = full_name, last_name = \'\''))
+                # Migrate data: split full_name or use email as fallback
+                conn.execute(text('''
+                    UPDATE "user" 
+                    SET first_name = COALESCE(SPLIT_PART(full_name, ' ', 1), 'User'),
+                        last_name = COALESCE(NULLIF(SPLIT_PART(full_name, ' ', 2), ''), 'Unknown')
+                    WHERE first_name IS NULL OR first_name = ''
+                '''))
                 conn.commit()
-                print("✅ Migrated full_name data to first_name")
+                print("✅ Migrated full_name data to first_name/last_name")
                 
-                # Now make them NOT NULL
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN first_name SET NOT NULL'))
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN last_name SET NOT NULL'))
+                # Make first_name and last_name NOT NULL before dropping full_name
+                conn.execute(text('UPDATE "user" SET first_name = \'User\' WHERE first_name IS NULL OR first_name = \'\''))
+                conn.execute(text('UPDATE "user" SET last_name = \'Unknown\' WHERE last_name IS NULL OR last_name = \'\''))
                 conn.commit()
-                print("✅ Set first_name and last_name to NOT NULL")
                 
-                # Drop the old full_name column
+                # Now drop the full_name column
                 conn.execute(text('ALTER TABLE "user" DROP COLUMN full_name'))
                 conn.commit()
                 print("✅ Dropped old full_name column")
-                
-            # Case 2: Has first_name but it's nullable (needs NOT NULL)
-            elif has_first_name and not columns['first_name'].get('nullable', True):
-                print("first_name exists but may have issues...")
             
-            # Ensure phone_number and id_number exist
-            if 'phone_number' not in columns:
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN phone_number VARCHAR(10) DEFAULT \'0000000000\' NOT NULL'))
-                conn.commit()
-                print("✅ Added phone_number column")
-            elif columns['phone_number'].get('nullable', True):
-                # Update nulls and make NOT NULL
-                conn.execute(text('UPDATE "user" SET phone_number = \'0000000000\' WHERE phone_number IS NULL'))
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN phone_number SET NOT NULL'))
-                conn.commit()
-                print("✅ Fixed phone_number column")
+            # Step 2: Ensure all required columns exist with proper constraints
+            required_columns = {
+                'first_name': 'VARCHAR(100) NOT NULL DEFAULT \'User\'',
+                'last_name': 'VARCHAR(100) NOT NULL DEFAULT \'Unknown\'',
+                'phone_number': 'VARCHAR(10) NOT NULL DEFAULT \'0000000000\'',
+                'id_number': 'VARCHAR(13)',
+                'last_login': 'TIMESTAMP'
+            }
             
-            if 'id_number' not in columns:
-                # Generate unique default ID numbers for existing users
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN id_number VARCHAR(13)'))
-                conn.commit()
-                # Update with unique IDs based on user id
-                conn.execute(text('UPDATE "user" SET id_number = LPAD(id::text, 13, \'0\')'))
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN id_number SET NOT NULL'))
-                conn.execute(text('ALTER TABLE "user" ADD CONSTRAINT unique_id_number UNIQUE (id_number)'))
-                conn.commit()
-                print("✅ Added id_number column with unique values")
-            elif columns['id_number'].get('nullable', True):
+            for col_name, col_type in required_columns.items():
+                if col_name not in columns:
+                    conn.execute(text(f'ALTER TABLE "user" ADD COLUMN {col_name} {col_type}'))
+                    conn.commit()
+                    print(f"✅ Added missing column: {col_name}")
+            
+            # Step 3: Handle id_number specially (needs unique constraint)
+            if 'id_number' in columns or 'id_number' not in columns:
+                # Ensure id_number has values for all rows
                 conn.execute(text('UPDATE "user" SET id_number = LPAD(id::text, 13, \'0\') WHERE id_number IS NULL'))
-                conn.execute(text('ALTER TABLE "user" ALTER COLUMN id_number SET NOT NULL'))
                 conn.commit()
-                print("✅ Fixed id_number column")
+                
+                # Try to add NOT NULL constraint
+                try:
+                    conn.execute(text('ALTER TABLE "user" ALTER COLUMN id_number SET NOT NULL'))
+                    conn.commit()
+                    print("✅ Set id_number to NOT NULL")
+                except:
+                    print("⚠️ Could not set id_number to NOT NULL (may have duplicates)")
             
-            if 'last_login' not in columns:
-                conn.execute(text('ALTER TABLE "user" ADD COLUMN last_login TIMESTAMP'))
-                conn.commit()
-                print("✅ Added last_login column")
+            # Step 4: Clean up old columns that are no longer needed
+            old_columns = ['student_number', 'phone']  # Old column names
+            for old_col in old_columns:
+                if old_col in columns:
+                    try:
+                        conn.execute(text(f'ALTER TABLE "user" DROP COLUMN {old_col}'))
+                        conn.commit()
+                        print(f"✅ Dropped old column: {old_col}")
+                    except Exception as e:
+                        print(f"⚠️ Could not drop {old_col}: {e}")
         
         print("\n✅ Schema fix complete!")
         
-        # Now verify and seed data
-        db.session.expire_all()  # Clear any cached metadata
+        # Step 5: Verify and create admin user
+        db.session.expire_all()
         
-        # Check admin user
+        # Check if admin exists
         admin = User.query.filter_by(email='admin@bakerslovers.com').first()
         if not admin:
             print("\nCreating admin user...")
-            admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
-            new_admin = User(
-                email='admin@bakerslovers.com',
-                password_hash=generate_password_hash(admin_password),
-                first_name='Admin',
-                last_name='User',
-                phone_number='0123456789',
-                id_number='1234567890123',
-                is_admin=True
-            )
-            db.session.add(new_admin)
-            db.session.commit()
-            print(f"✅ Admin created: admin@bakerslovers.com / {admin_password}")
+            try:
+                admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
+                new_admin = User(
+                    email='admin@bakerslovers.com',
+                    password_hash=generate_password_hash(admin_password),
+                    first_name='Admin',
+                    last_name='User',
+                    phone_number='0123456789',
+                    id_number='1234567890123',
+                    is_admin=True
+                )
+                db.session.add(new_admin)
+                db.session.commit()
+                print(f"✅ Admin created: admin@bakerslovers.com / {admin_password}")
+            except Exception as e:
+                print(f"❌ Error creating admin: {e}")
+                db.session.rollback()
         else:
             print(f"\n✅ Admin exists: {admin.email}")
-            # Ensure admin has all required fields
-            if not admin.first_name:
-                admin.first_name = 'Admin'
-            if not admin.last_name:
-                admin.last_name = 'User'
-            if not admin.phone_number:
-                admin.phone_number = '0123456789'
-            if not admin.id_number:
-                admin.id_number = '1234567890123'
-            db.session.commit()
         
-        # Seed products
+        # Step 6: Seed products
         if Product.query.count() == 0:
             products = [
                 Product(name='Chocolate Birthday Cake', description='Rich chocolate cake', category='Birthday', size='8-inch', stock=10, price=450.00, available=True),
@@ -145,7 +149,7 @@ with app.app_context():
             db.session.commit()
             print("✅ Sample products created")
         
-        # Seed coupon
+        # Step 7: Seed coupon
         if Coupon.query.count() == 0:
             coupon = Coupon(code='BAKERS10', discount_amount=10, is_percentage=True, valid_from=datetime.utcnow() - timedelta(days=1), valid_to=datetime.utcnow() + timedelta(days=30), active=True)
             db.session.add(coupon)
@@ -157,7 +161,7 @@ with app.app_context():
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error during schema fix: {e}")
         import traceback
         traceback.print_exc()
 
