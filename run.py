@@ -1,4 +1,4 @@
-# run.py - Fix database schema by removing old full_name column
+# run.py - Complete database and admin fix
 import os
 from app import create_app, db
 from app.models import User, Product, Order, OrderItem, CartItem, Coupon, Favorite, Feedback, Payment
@@ -18,127 +18,119 @@ def make_shell_context():
         'Favorite': Favorite, 'Feedback': Feedback, 'Payment': Payment
     }
 
-# Fix database schema
+# Database schema and admin fix
 with app.app_context():
     print("=" * 60)
-    print("FIXING DATABASE SCHEMA")
+    print("DATABASE ADMIN UTILITY")
     print("=" * 60)
     
     try:
+        # First, let's see what we have
         inspector = inspect(db.engine)
         columns_info = inspector.get_columns('user')
         columns = {col['name']: col for col in columns_info}
-        column_names = list(columns.keys())
-        print(f"Existing columns: {column_names}")
+        print(f"\nDatabase columns: {list(columns.keys())}")
         
-        with db.engine.connect() as conn:
-            
-            # Step 1: Handle the problematic full_name column
-            if 'full_name' in columns:
-                print("\n⚠️ Found old 'full_name' column - migrating data...")
-                
-                # If we don't have first_name/last_name, create them first
-                if 'first_name' not in columns:
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN first_name VARCHAR(100)'))
-                    print("✅ Added first_name")
-                
-                if 'last_name' not in columns:
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN last_name VARCHAR(100)'))
-                    print("✅ Added last_name")
-                
-                conn.commit()
-                
-                # Migrate data: split full_name or use email as fallback
-                conn.execute(text('''
-                    UPDATE "user" 
-                    SET first_name = COALESCE(SPLIT_PART(full_name, ' ', 1), 'User'),
-                        last_name = COALESCE(NULLIF(SPLIT_PART(full_name, ' ', 2), ''), 'Unknown')
-                    WHERE first_name IS NULL OR first_name = ''
-                '''))
-                conn.commit()
-                print("✅ Migrated full_name data to first_name/last_name")
-                
-                # Make first_name and last_name NOT NULL before dropping full_name
-                conn.execute(text('UPDATE "user" SET first_name = \'User\' WHERE first_name IS NULL OR first_name = \'\''))
-                conn.execute(text('UPDATE "user" SET last_name = \'Unknown\' WHERE last_name IS NULL OR last_name = \'\''))
-                conn.commit()
-                
-                # Now drop the full_name column
-                conn.execute(text('ALTER TABLE "user" DROP COLUMN full_name'))
-                conn.commit()
-                print("✅ Dropped old full_name column")
-            
-            # Step 2: Ensure all required columns exist with proper constraints
-            required_columns = {
-                'first_name': 'VARCHAR(100) NOT NULL DEFAULT \'User\'',
-                'last_name': 'VARCHAR(100) NOT NULL DEFAULT \'Unknown\'',
-                'phone_number': 'VARCHAR(10) NOT NULL DEFAULT \'0000000000\'',
-                'id_number': 'VARCHAR(13)',
-                'last_login': 'TIMESTAMP'
-            }
-            
-            for col_name, col_type in required_columns.items():
-                if col_name not in columns:
-                    conn.execute(text(f'ALTER TABLE "user" ADD COLUMN {col_name} {col_type}'))
-                    conn.commit()
-                    print(f"✅ Added missing column: {col_name}")
-            
-            # Step 3: Handle id_number specially (needs unique constraint)
-            if 'id_number' in columns or 'id_number' not in columns:
-                # Ensure id_number has values for all rows
-                conn.execute(text('UPDATE "user" SET id_number = LPAD(id::text, 13, \'0\') WHERE id_number IS NULL'))
-                conn.commit()
-                
-                # Try to add NOT NULL constraint
-                try:
-                    conn.execute(text('ALTER TABLE "user" ALTER COLUMN id_number SET NOT NULL'))
-                    conn.commit()
-                    print("✅ Set id_number to NOT NULL")
-                except:
-                    print("⚠️ Could not set id_number to NOT NULL (may have duplicates)")
-            
-            # Step 4: Clean up old columns that are no longer needed
-            old_columns = ['student_number', 'phone']  # Old column names
-            for old_col in old_columns:
-                if old_col in columns:
-                    try:
-                        conn.execute(text(f'ALTER TABLE "user" DROP COLUMN {old_col}'))
-                        conn.commit()
-                        print(f"✅ Dropped old column: {old_col}")
-                    except Exception as e:
-                        print(f"⚠️ Could not drop {old_col}: {e}")
+        # Check existing users
+        all_users = User.query.all()
+        print(f"\nTotal users in database: {len(all_users)}")
         
-        print("\n✅ Schema fix complete!")
+        for user in all_users:
+            print(f"  - ID: {user.id}, Email: {user.email}, Admin: {user.is_admin}")
+            print(f"    first_name: {getattr(user, 'first_name', 'N/A')}, last_name: {getattr(user, 'last_name', 'N/A')}")
         
-        # Step 5: Verify and create admin user
-        db.session.expire_all()
+        # Check specifically for admin
+        admin_email = 'admin@bakerslovers.com'
+        admin = User.query.filter_by(email=admin_email).first()
         
-        # Check if admin exists
-        admin = User.query.filter_by(email='admin@bakerslovers.com').first()
-        if not admin:
-            print("\nCreating admin user...")
+        if admin:
+            print(f"\n✅ Admin user FOUND (ID: {admin.id})")
+            print(f"   Email: {admin.email}")
+            print(f"   is_admin: {admin.is_admin}")
+            print(f"   first_name: {admin.first_name}")
+            print(f"   last_name: {admin.last_name}")
+            print(f"   phone_number: {admin.phone_number}")
+            print(f"   id_number: {admin.id_number}")
+            
+            # Fix any missing fields
+            needs_update = False
+            
+            if not admin.first_name:
+                admin.first_name = 'Admin'
+                needs_update = True
+            if not admin.last_name:
+                admin.last_name = 'User'
+                needs_update = True
+            if not admin.phone_number:
+                admin.phone_number = '0123456789'
+                needs_update = True
+            if not admin.id_number:
+                # Generate unique ID
+                admin.id_number = f'ADMIN{admin.id:08d}'
+                needs_update = True
+            if not admin.is_admin:
+                admin.is_admin = True
+                needs_update = True
+            
+            # Reset password
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
+            admin.password_hash = generate_password_hash(admin_password)
+            needs_update = True
+            
+            if needs_update:
+                db.session.commit()
+                print(f"\n✅ Admin user UPDATED with new password: {admin_password}")
+            else:
+                print(f"\n✅ Admin user already complete, password reset to: {admin_password}")
+                
+        else:
+            print(f"\n⚠️ Admin user NOT FOUND - creating new one...")
+            
+            # Generate unique id_number
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M')
+            
             try:
                 admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
                 new_admin = User(
-                    email='admin@bakerslovers.com',
+                    email=admin_email,
                     password_hash=generate_password_hash(admin_password),
                     first_name='Admin',
                     last_name='User',
                     phone_number='0123456789',
-                    id_number='1234567890123',
+                    id_number=f'ADMIN{timestamp}',  # Unique ID
                     is_admin=True
                 )
                 db.session.add(new_admin)
                 db.session.commit()
-                print(f"✅ Admin created: admin@bakerslovers.com / {admin_password}")
-            except Exception as e:
-                print(f"❌ Error creating admin: {e}")
+                print(f"✅ NEW ADMIN CREATED:")
+                print(f"   Email: {admin_email}")
+                print(f"   Password: {admin_password}")
+                print(f"   ID Number: {timestamp}")
+                
+            except Exception as create_error:
                 db.session.rollback()
-        else:
-            print(f"\n✅ Admin exists: {admin.email}")
+                print(f"❌ Error creating admin: {create_error}")
+                print("Trying alternative method...")
+                
+                # Try raw SQL insert
+                with db.engine.connect() as conn:
+                    from sqlalchemy import text
+                    hashed = generate_password_hash(admin_password)
+                    conn.execute(text(f'''
+                        INSERT INTO "user" (email, password_hash, first_name, last_name, phone_number, id_number, is_admin, created_at)
+                        VALUES ('{admin_email}', '{hashed}', 'Admin', 'User', '0123456789', 'ADMIN{timestamp}', true, NOW())
+                        ON CONFLICT (email) DO UPDATE SET
+                        password_hash = EXCLUDED.password_hash,
+                        is_admin = true,
+                        first_name = 'Admin',
+                        last_name = 'User'
+                    '''))
+                    conn.commit()
+                    print(f"✅ Admin created/updated via SQL")
         
-        # Step 6: Seed products
+        # Seed products if none exist
         if Product.query.count() == 0:
+            print("\n📦 Creating sample products...")
             products = [
                 Product(name='Chocolate Birthday Cake', description='Rich chocolate cake', category='Birthday', size='8-inch', stock=10, price=450.00, available=True),
                 Product(name='Wedding Vanilla Cake', description='Elegant vanilla cake', category='Wedding', size='3-tier', stock=5, price=2500.00, available=True),
@@ -149,19 +141,25 @@ with app.app_context():
             db.session.commit()
             print("✅ Sample products created")
         
-        # Step 7: Seed coupon
+        # Seed coupon if none exist
         if Coupon.query.count() == 0:
+            print("\n🎟️ Creating sample coupon...")
             coupon = Coupon(code='BAKERS10', discount_amount=10, is_percentage=True, valid_from=datetime.utcnow() - timedelta(days=1), valid_to=datetime.utcnow() + timedelta(days=30), active=True)
             db.session.add(coupon)
             db.session.commit()
-            print("✅ Sample coupon created")
+            print("✅ Sample coupon created (BAKERS10 - 10% off)")
         
+        print("\n" + "=" * 60)
+        print("SETUP COMPLETE")
         print("=" * 60)
-        print("DATABASE READY")
+        print(f"\n🔑 ADMIN LOGIN:")
+        print(f"   URL: https://bakers-lovers.onrender.com/auth/login")
+        print(f"   Email: admin@bakerslovers.com")
+        print(f"   Password: {os.environ.get('ADMIN_PASSWORD', 'Admin@123')}")
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Error during schema fix: {e}")
+        print(f"\n❌ CRITICAL ERROR: {e}")
         import traceback
         traceback.print_exc()
 

@@ -77,28 +77,65 @@ def logout():
 
 @bp.route('/reset-admin')
 def reset_admin():
-    """Temporary route to reset admin password"""
+    """Reset or create admin user"""
     from app.models import User
     from werkzeug.security import generate_password_hash
     import os
     
-    admin = User.query.filter_by(email='admin@bakerslovers.com').first()
-    if admin:
-        admin.password_hash = generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'Admin@123'))
-        db.session.commit()
-        return "Admin password reset successfully! You can now login with: admin@bakerslovers.com / " + os.environ.get('ADMIN_PASSWORD', 'Admin@123')
-    else:
-        # Create admin
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
-        new_admin = User(
-            email='admin@bakerslovers.com',
-            password_hash=generate_password_hash(admin_password),
-            first_name='Admin',
-            last_name='User',
-            phone_number='0123456789',
-            id_number='1234567890123',
-            is_admin=True
-        )
-        db.session.add(new_admin)
-        db.session.commit()
-        return "Admin created! Login with: admin@bakerslovers.com / " + admin_password
+    admin_email = 'admin@bakerslovers.com'
+    admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
+    
+    try:
+        # Try to find existing admin
+        admin = User.query.filter_by(email=admin_email).first()
+        
+        if admin:
+            # Update existing admin
+            admin.password_hash = generate_password_hash(admin_password)
+            admin.is_admin = True
+            admin.first_name = admin.first_name or 'Admin'
+            admin.last_name = admin.last_name or 'User'
+            admin.phone_number = admin.phone_number or '0123456789'
+            
+            if not admin.id_number:
+                admin.id_number = f'ADMIN{admin.id:08d}'
+            
+            db.session.commit()
+            
+            return f"""
+            <h1>✅ Admin Updated Successfully!</h1>
+            <p><strong>Email:</strong> {admin_email}</p>
+            <p><strong>Password:</strong> {admin_password}</p>
+            <p><a href="/auth/login">Go to Login</a></p>
+            """
+        else:
+            # Create new admin with unique id_number
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+            
+            new_admin = User(
+                email=admin_email,
+                password_hash=generate_password_hash(admin_password),
+                first_name='Admin',
+                last_name='User',
+                phone_number='0123456789',
+                id_number=f'ADMIN{timestamp}',  # Guaranteed unique
+                is_admin=True
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            
+            return f"""
+            <h1>✅ Admin Created Successfully!</h1>
+            <p><strong>Email:</strong> {admin_email}</p>
+            <p><strong>Password:</strong> {admin_password}</p>
+            <p><strong>ID Number:</strong> ADMIN{timestamp}</p>
+            <p><a href="/auth/login">Go to Login</a></p>
+            """
+            
+    except Exception as e:
+        db.session.rollback()
+        return f"""
+        <h1>❌ Error</h1>
+        <p>{str(e)}</p>
+        <p>Check the logs for details.</p>
+        """, 500
