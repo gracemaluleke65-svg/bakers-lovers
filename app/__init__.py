@@ -5,6 +5,7 @@ from flask_session import Session
 from flask_wtf.csrf import CSRFProtect
 from flask_migrate import Migrate
 import stripe
+from config import Config
 import base64
 import os
 
@@ -14,20 +15,10 @@ session_store = Session()
 csrf = CSRFProtect()
 migrate = Migrate()
 
-def create_app(config_class=None):
+def create_app(config_class=Config):
     # Get the base directory of the app package
     base_dir = os.path.dirname(os.path.abspath(__file__))
     static_folder = os.path.join(base_dir, 'static')
-    
-    # Determine config class
-    if config_class is None:
-        env = os.environ.get('FLASK_ENV', 'production')
-        if env == 'development':
-            from config import DevelopmentConfig
-            config_class = DevelopmentConfig
-        else:
-            from config import ProductionConfig
-            config_class = ProductionConfig
     
     # Create app with explicit static folder
     app = Flask(
@@ -39,13 +30,13 @@ def create_app(config_class=None):
     
     # Initialize extensions
     db.init_app(app)
-    migrate.init_app(app, db)
     login_manager.init_app(app)
     session_store.init_app(app)
     csrf.init_app(app)
+    migrate.init_app(app, db)
     
     # Configure Stripe
-    stripe.api_key = app.config.get('STRIPE_SECRET_KEY')
+    stripe.api_key = app.config['STRIPE_SECRET_KEY']
     
     # Configure login manager
     login_manager.login_view = 'auth.login'
@@ -96,10 +87,11 @@ def create_app(config_class=None):
     from app.routes.coupons import bp as coupons_bp
     app.register_blueprint(coupons_bp, url_prefix='/coupons')
     
+    # REGISTER ADMIN BLUEPRINT - THIS WAS MISSING!
     from app.routes.admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix='/admin')
     
-    # Create database tables if they don't exist
+    # Create database tables if they don't exist (for Render deployment)
     with app.app_context():
         db.create_all()
     
