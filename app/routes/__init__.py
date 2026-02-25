@@ -60,7 +60,7 @@ def create_app(config_class=Config):
     
     app.jinja_env.filters['b64encode'] = b64encode
     
-    # Register blueprints
+    # Register blueprints – each exactly once
     from app.routes.main import bp as main_bp
     app.register_blueprint(main_bp)
     

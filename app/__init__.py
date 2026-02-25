@@ -1,3 +1,4 @@
+# app/__init__.py
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -28,12 +29,12 @@ def create_app(config_class=Config):
     )
     app.config.from_object(config_class)
     
-    # Initialize extensions
+    # Initialize extensions in correct order
     db.init_app(app)
+    migrate.init_app(app, db)  # Initialize migrate BEFORE login manager
     login_manager.init_app(app)
     session_store.init_app(app)
     csrf.init_app(app)
-    migrate.init_app(app, db)
     
     # Configure Stripe
     stripe.api_key = app.config['STRIPE_SECRET_KEY']
@@ -59,7 +60,7 @@ def create_app(config_class=Config):
     
     app.jinja_env.filters['b64encode'] = b64encode
     
-    # Register blueprints
+    # Register blueprints – each exactly once
     from app.routes.main import bp as main_bp
     app.register_blueprint(main_bp)
     
@@ -87,12 +88,7 @@ def create_app(config_class=Config):
     from app.routes.coupons import bp as coupons_bp
     app.register_blueprint(coupons_bp, url_prefix='/coupons')
     
-    # REGISTER ADMIN BLUEPRINT - THIS WAS MISSING!
     from app.routes.admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    
-    # Create database tables if they don't exist (for Render deployment)
-    with app.app_context():
-        db.create_all()
     
     return app

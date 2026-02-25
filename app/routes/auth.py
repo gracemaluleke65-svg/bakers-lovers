@@ -1,3 +1,4 @@
+# app/routes/auth.py
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,7 +8,6 @@ from app.models import User
 from app.forms import LoginForm, RegistrationForm
 
 bp = Blueprint('auth', __name__)
-
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -46,7 +46,6 @@ def register():
     
     return render_template('auth/register.html', form=form)
 
-
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -66,14 +65,12 @@ def login():
     
     return render_template('auth/login.html', form=form)
 
-
 @bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.index'))
-
 
 @bp.route('/reset-admin')
 def reset_admin():
@@ -98,7 +95,7 @@ def reset_admin():
             admin.phone_number = admin.phone_number or '0123456789'
             
             if not admin.id_number:
-                admin.id_number = f'ADMIN{admin.id:08d}'
+                admin.id_number = '1234567890123'   # <-- FIXED: 13-digit number
             
             db.session.commit()
             
@@ -109,16 +106,14 @@ def reset_admin():
             <p><a href="/auth/login">Go to Login</a></p>
             """
         else:
-            # Create new admin with unique id_number
-            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
-            
+            # Create new admin with a valid 13-digit ID number
             new_admin = User(
                 email=admin_email,
                 password_hash=generate_password_hash(admin_password),
                 first_name='Admin',
                 last_name='User',
                 phone_number='0123456789',
-                id_number=f'ADMIN{timestamp}',  # Guaranteed unique
+                id_number='1234567890123',   # <-- FIXED: 13-digit number (no prefix)
                 is_admin=True
             )
             db.session.add(new_admin)
@@ -128,7 +123,6 @@ def reset_admin():
             <h1>✅ Admin Created Successfully!</h1>
             <p><strong>Email:</strong> {admin_email}</p>
             <p><strong>Password:</strong> {admin_password}</p>
-            <p><strong>ID Number:</strong> ADMIN{timestamp}</p>
             <p><a href="/auth/login">Go to Login</a></p>
             """
             
