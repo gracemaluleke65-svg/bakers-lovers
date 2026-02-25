@@ -6,7 +6,7 @@ from app import db
 from app.models import User
 from app.forms import LoginForm, RegistrationForm
 
-bp = Blueprint('auth', __name__)
+bp = Blueprint('admin', __name__)
 
 
 @bp.route('/register', methods=['GET', 'POST'])
