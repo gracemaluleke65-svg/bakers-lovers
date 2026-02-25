@@ -104,6 +104,7 @@ with app.app_context():
                     print(f"   ✅ Added {col}")
         
         # ========== ADMIN USER SETUP ==========
+               # ========== ADMIN USER SETUP ==========
         print("\n👤 Setting up admin user...")
         admin_email = 'admin@bakerslovers.com'
         admin_password = os.environ.get('ADMIN_PASSWORD', 'Admin@123')
@@ -127,10 +128,9 @@ with app.app_context():
                 print("   Creating new admin...")
                 # Generate a random 13-digit number that doesn't exist yet
                 while True:
-                    new_id = f'{random.randint(1000000000000, 9999999999999)}'  # <-- FIXED: 13 digits, no prefix
+                    new_id = f'{random.randint(1000000000000, 9999999999999)}'  # 13 digits only
                     if not User.query.filter_by(id_number=new_id).first():
                         break
-                
                 admin = User(
                     email=admin_email,
                     password_hash=generate_password_hash(admin_password),
@@ -142,45 +142,9 @@ with app.app_context():
                 )
                 db.session.add(admin)
         
-        # Update admin
+        # Update admin (ensures password hash is current and admin flag set)
         admin.password_hash = generate_password_hash(admin_password)
         admin.is_admin = True
         db.session.commit()
         
         print(f"   ✅ Admin ready: {admin_email} / {admin_password}")
-        
-        # ========== SEED DATA ==========
-        if Product.query.count() == 0:
-            print("\n📦 Creating products...")
-            products = [
-                Product(name='Chocolate Birthday Cake', description='Rich chocolate cake', category='Birthday', size='8-inch', stock=10, price=450.00, available=True),
-                Product(name='Wedding Vanilla Cake', description='Elegant vanilla cake', category='Wedding', size='3-tier', stock=5, price=2500.00, available=True),
-                Product(name='Custom Red Velvet', description='Customizable red velvet', category='Custom', size='6-inch', stock=8, price=380.00, available=True)
-            ]
-            for p in products:
-                db.session.add(p)
-            db.session.commit()
-            print("   ✅ Products created")
-        
-        if Coupon.query.count() == 0:
-            print("\n🎟️ Creating coupon...")
-            coupon = Coupon(code='BAKERS10', discount_amount=10, is_percentage=True, valid_from=datetime.utcnow() - timedelta(days=1), valid_to=datetime.utcnow() + timedelta(days=30), active=True)
-            db.session.add(coupon)
-            db.session.commit()
-            print("   ✅ Coupon created")
-        
-        print("\n" + "=" * 60)
-        print("✅ DATABASE READY")
-        print("=" * 60)
-        print(f"\n🔑 Login: {admin_email} / {admin_password}")
-        print("=" * 60)
-        
-    except Exception as e:
-        print(f"\n❌ ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug)
