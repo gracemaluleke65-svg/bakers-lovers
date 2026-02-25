@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from sqlalchemy import text, inspect
 from werkzeug.security import generate_password_hash
 from datetime import datetime, timedelta
+import random
 
 app = create_app()
 migrate = Migrate(app, db)
@@ -117,16 +118,16 @@ with app.app_context():
         admin = User.query.filter_by(email=admin_email).first()
         
         if not admin:
-            # Check if any user has the admin id_number
+            # Check if any user has the admin id_number (old numeric ID)
             admin = User.query.filter_by(id_number='1234567890123').first()
             if admin:
                 print(f"   Found user with admin ID, updating to {admin_email}")
                 admin.email = admin_email
             else:
                 print("   Creating new admin...")
-                import random
+                # Generate a random 13-digit number that doesn't exist yet
                 while True:
-                    new_id = f'ADMIN{random.randint(1000000000000, 9999999999999)}'
+                    new_id = f'{random.randint(1000000000000, 9999999999999)}'  # <-- FIXED: 13 digits, no prefix
                     if not User.query.filter_by(id_number=new_id).first():
                         break
                 
