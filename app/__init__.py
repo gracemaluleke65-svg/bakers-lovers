@@ -31,7 +31,7 @@ def create_app(config_class=Config):
     
     # Initialize extensions in correct order
     db.init_app(app)
-    migrate.init_app(app, db)  # Initialize migrate BEFORE login manager
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     session_store.init_app(app)
     csrf.init_app(app)
@@ -44,11 +44,11 @@ def create_app(config_class=Config):
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     
-    # User loader
+    # User loader - UPDATED to use BKL_User
     @login_manager.user_loader
     def load_user(user_id):
-        from app.models import User
-        return User.query.get(int(user_id))
+        from app.models import BKL_User
+        return BKL_User.query.get(int(user_id))
     
     # Add b64encode filter to Jinja2
     def b64encode(value):
@@ -60,7 +60,15 @@ def create_app(config_class=Config):
     
     app.jinja_env.filters['b64encode'] = b64encode
     
-    # Register blueprints – each exactly once
+    # CREATE ALL TABLES on startup (fixes empty database issue)
+    with app.app_context():
+        try:
+            db.create_all()
+            print("✅ Database tables created successfully (with BKL_ prefix)")
+        except Exception as e:
+            print(f"⚠️ Error creating tables: {e}")
+    
+    # Register blueprints
     from app.routes.main import bp as main_bp
     app.register_blueprint(main_bp)
     

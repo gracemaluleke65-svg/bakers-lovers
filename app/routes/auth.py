@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from app import db
-from app.models import User
+from app.models import BKL_User
 from app.forms import LoginForm, RegistrationForm
 
 bp = Blueprint('auth', __name__)
@@ -17,19 +17,19 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # Check if user already exists
-        existing_user = User.query.filter_by(email=form.email.data.lower()).first()
+        existing_user = BKL_User.query.filter_by(email=form.email.data.lower()).first()
         if existing_user:
             flash('Email already registered.', 'error')
             return redirect(url_for('auth.register'))
         
         # Check ID number
-        existing_id = User.query.filter_by(id_number=form.id_number.data).first()
+        existing_id = BKL_User.query.filter_by(id_number=form.id_number.data).first()
         if existing_id:
             flash('ID number already registered.', 'error')
             return redirect(url_for('auth.register'))
         
         # Create new user
-        user = User(
+        user = BKL_User(
             email=form.email.data.lower(),
             password_hash=generate_password_hash(form.password.data),
             first_name=form.first_name.data,
@@ -53,7 +53,7 @@ def login():
     
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.lower()).first()
+        user = BKL_User.query.filter_by(email=form.email.data.lower()).first()
         
         if user and check_password_hash(user.password_hash, form.password.data):
             user.last_login = datetime.utcnow()
@@ -75,7 +75,7 @@ def logout():
 @bp.route('/reset-admin')
 def reset_admin():
     """Reset or create admin user"""
-    from app.models import User
+    from app.models import BKL_User
     from werkzeug.security import generate_password_hash
     import os
     
@@ -84,7 +84,7 @@ def reset_admin():
     
     try:
         # Try to find existing admin
-        admin = User.query.filter_by(email=admin_email).first()
+        admin = BKL_User.query.filter_by(email=admin_email).first()
         
         if admin:
             # Update existing admin
@@ -95,7 +95,7 @@ def reset_admin():
             admin.phone_number = admin.phone_number or '0123456789'
             
             if not admin.id_number:
-                admin.id_number = '1234567890123'   # <-- FIXED: 13-digit number
+                admin.id_number = '1234567890123'
             
             db.session.commit()
             
@@ -106,14 +106,14 @@ def reset_admin():
             <p><a href="/auth/login">Go to Login</a></p>
             """
         else:
-            # Create new admin with a valid 13-digit ID number
-            new_admin = User(
+            # Create new admin
+            new_admin = BKL_User(
                 email=admin_email,
                 password_hash=generate_password_hash(admin_password),
                 first_name='Admin',
                 last_name='User',
                 phone_number='0123456789',
-                id_number='1234567890123',   # <-- FIXED: 13-digit number (no prefix)
+                id_number='1234567890123',
                 is_admin=True
             )
             db.session.add(new_admin)

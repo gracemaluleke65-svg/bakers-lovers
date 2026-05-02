@@ -3,7 +3,9 @@ from flask_login import UserMixin
 from datetime import datetime
 from app import db
 
-class User(UserMixin, db.Model):
+class BKL_User(UserMixin, db.Model):
+    __tablename__ = 'bkl_user'
+    
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
@@ -16,9 +18,9 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
 
     # Relationships
-    orders = db.relationship('Order', backref='user', lazy=True, cascade='all, delete-orphan')
-    favorites = db.relationship('Favorite', backref='user', lazy=True, cascade='all, delete-orphan')
-    feedbacks = db.relationship('Feedback', backref='user', lazy=True, cascade='all, delete-orphan')
+    orders = db.relationship('BKL_Order', backref='user', lazy=True, cascade='all, delete-orphan')
+    favorites = db.relationship('BKL_Favorite', backref='user', lazy=True, cascade='all, delete-orphan')
+    feedbacks = db.relationship('BKL_Feedback', backref='user', lazy=True, cascade='all, delete-orphan')
     
     def get_id(self):
         return str(self.id)
@@ -27,9 +29,12 @@ class User(UserMixin, db.Model):
         return f"{self.first_name} {self.last_name}"
     
     def __repr__(self):
-        return f'<User {self.email}>'
+        return f'<BKL_User {self.email}>'
 
-class Product(db.Model):
+
+class BKL_Product(db.Model):
+    __tablename__ = 'bkl_product'
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
     description = db.Column(db.Text, default='')
@@ -41,20 +46,24 @@ class Product(db.Model):
     available = db.Column(db.Boolean, default=True)
     
     # Relationships
-    order_items = db.relationship('OrderItem', backref='product', lazy=True)
-    favorites = db.relationship('Favorite', backref='product', lazy=True)
-    cart_items = db.relationship('CartItem', backref='product', lazy=True)
+    order_items = db.relationship('BKL_OrderItem', backref='product', lazy=True)
+    favorites = db.relationship('BKL_Favorite', backref='product', lazy=True)
+    cart_items = db.relationship('BKL_CartItem', backref='product', lazy=True)
 
-class CartItem(db.Model):
+
+class BKL_CartItem(db.Model):
+    __tablename__ = 'bkl_cart_item'
+    
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(255), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('bkl_product.id'), nullable=False)
     product_name = db.Column(db.String(150), nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
     quantity = db.Column(db.Integer, default=1)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Cart:
+
+class BKL_Cart:
     def __init__(self, session_id=None):
         self.items = []
         self.session_id = session_id
@@ -72,7 +81,7 @@ class Cart:
         if existing_item:
             existing_item.quantity += quantity
         else:
-            cart_item = CartItem(
+            cart_item = BKL_CartItem(
                 session_id=self.session_id,
                 product_id=product.id,
                 product_name=product.name,
@@ -86,7 +95,7 @@ class Cart:
         if item:
             if quantity > 0:
                 item.quantity = quantity
-                db_item = CartItem.query.filter_by(
+                db_item = BKL_CartItem.query.filter_by(
                     session_id=self.session_id,
                     product_id=product_id
                 ).first()
@@ -100,7 +109,7 @@ class Cart:
     
     def remove_item(self, product_id):
         self.items = [item for item in self.items if item.product_id != product_id]
-        CartItem.query.filter_by(
+        BKL_CartItem.query.filter_by(
             session_id=self.session_id,
             product_id=product_id
         ).delete()
@@ -108,7 +117,7 @@ class Cart:
     
     def clear(self):
         self.items = []
-        CartItem.query.filter_by(session_id=self.session_id).delete()
+        BKL_CartItem.query.filter_by(session_id=self.session_id).delete()
         db.session.commit()
     
     @property
@@ -117,7 +126,7 @@ class Cart:
     
     def save_to_db(self):
         try:
-            existing_items = CartItem.query.filter_by(session_id=self.session_id).all()
+            existing_items = BKL_CartItem.query.filter_by(session_id=self.session_id).all()
             existing_dict = {item.product_id: item for item in existing_items}
             
             for item in self.items:
@@ -127,7 +136,7 @@ class Cart:
                     db_item.unit_price = item.unit_price
                     db_item.product_name = item.product_name
                 else:
-                    new_item = CartItem(
+                    new_item = BKL_CartItem(
                         session_id=item.session_id,
                         product_id=item.product_id,
                         product_name=item.product_name,
@@ -148,12 +157,15 @@ class Cart:
             raise e
     
     def load_from_db(self):
-        self.items = CartItem.query.filter_by(session_id=self.session_id).all()
+        self.items = BKL_CartItem.query.filter_by(session_id=self.session_id).all()
     
     def __len__(self):
         return sum(item.quantity for item in self.items)
 
-class Coupon(db.Model):
+
+class BKL_Coupon(db.Model):
+    __tablename__ = 'bkl_coupon'
+    
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), unique=True, nullable=False)
     discount_amount = db.Column(db.Float, nullable=False)
@@ -166,9 +178,12 @@ class Coupon(db.Model):
         now = datetime.utcnow()
         return self.active and self.valid_from <= now <= self.valid_to
 
-class Order(db.Model):
+
+class BKL_Order(db.Model):
+    __tablename__ = 'bkl_order'
+    
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('bkl_user.id'), nullable=False)
     order_date = db.Column(db.DateTime, default=datetime.utcnow)
     total_amount = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), default='Pending')
@@ -177,33 +192,45 @@ class Order(db.Model):
     delivery_address = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    items = db.relationship('OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
-    feedbacks = db.relationship('Feedback', backref='order', lazy=True)
+    items = db.relationship('BKL_OrderItem', backref='order', lazy=True, cascade='all, delete-orphan')
+    feedbacks = db.relationship('BKL_Feedback', backref='order', lazy=True)
 
-class OrderItem(db.Model):
+
+class BKL_OrderItem(db.Model):
+    __tablename__ = 'bkl_order_item'
+    
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('bkl_order.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('bkl_product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Float, nullable=False)
 
-class Favorite(db.Model):
+
+class BKL_Favorite(db.Model):
+    __tablename__ = 'bkl_favorite'
+    
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('bkl_user.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('bkl_product.id'), nullable=False)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Feedback(db.Model):
+
+class BKL_Feedback(db.Model):
+    __tablename__ = 'bkl_feedback'
+    
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('bkl_user.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('bkl_order.id'), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text, default='')
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Payment(db.Model):
+
+class BKL_Payment(db.Model):
+    __tablename__ = 'bkl_payment'
+    
     id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('bkl_order.id'), nullable=False)
     stripe_payment_intent_id = db.Column(db.String(100), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     paid_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -1,10 +1,10 @@
-# app/routes/admin.py - UPDATED VERSION WITH FIXED DASHBOARD
+# app/routes/admin.py - UPDATED WITH BKL_ PREFIX
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from app import db
-from app.models import User, Order, Product, CartItem, Favorite, Feedback
+from app.models import BKL_User, BKL_Order, BKL_Product, BKL_CartItem, BKL_Favorite, BKL_Feedback
 
 bp = Blueprint('admin', __name__)
 
@@ -20,25 +20,24 @@ def dashboard():
     """Admin dashboard with statistics"""
     try:
         # Basic counts
-        total_users = User.query.count()
-        total_orders = Order.query.count()
-        pending_orders = Order.query.filter_by(status='Pending').all()
-        total_products = Product.query.count()
+        total_users = BKL_User.query.count()
+        total_orders = BKL_Order.query.count()
+        pending_orders = BKL_Order.query.filter_by(status='Pending').all()
+        total_products = BKL_Product.query.count()
         
         # Calculate total revenue from paid orders
-        paid_orders = Order.query.filter_by(payment_status='Paid').all()
+        paid_orders = BKL_Order.query.filter_by(payment_status='Paid').all()
         total_revenue = sum(float(order.total_amount) for order in paid_orders)
         
         # Get recent orders (last 10)
-        recent_orders = Order.query.order_by(Order.order_date.desc()).limit(10).all()
+        recent_orders = BKL_Order.query.order_by(BKL_Order.order_date.desc()).limit(10).all()
         
         # Get low stock products (less than 5 items)
-        low_stock_products = Product.query.filter(Product.stock < 5, Product.available == True).all()
+        low_stock_products = BKL_Product.query.filter(BKL_Product.stock < 5, BKL_Product.available == True).all()
         
         # Get current date for the template
         current_date = datetime.utcnow()
         
-        # Debug output
         print(f"DEBUG: Dashboard stats - Users: {total_users}, Orders: {total_orders}, Revenue: {total_revenue}")
         
         return render_template('admin/dashboard.html',
@@ -64,7 +63,6 @@ def generate_report():
         start_date = request.form.get('start_date')
         end_date = request.form.get('end_date')
         
-        # Calculate date range based on report type
         now = datetime.utcnow()
         
         if report_type == 'daily':
@@ -86,10 +84,9 @@ def generate_report():
             flash('Invalid report parameters.', 'error')
             return redirect(url_for('admin.dashboard'))
         
-        # Get orders within date range
-        orders = Order.query.filter(
-            Order.order_date >= start_date,
-            Order.order_date <= end_date
+        orders = BKL_Order.query.filter(
+            BKL_Order.order_date >= start_date,
+            BKL_Order.order_date <= end_date
         ).all()
         
         total_sales = sum(float(order.total_amount) for order in orders if order.payment_status == 'Paid')
@@ -106,13 +103,8 @@ def generate_report():
 def users():
     """Display all users in the system"""
     try:
-        # Get all users
-        users = User.query.order_by(User.created_at.desc()).all()
-        
-        # Debug output
+        users = BKL_User.query.order_by(BKL_User.created_at.desc()).all()
         print(f"DEBUG: Users route - Found {len(users)} users")
-        
-        # Get current time
         now = datetime.utcnow()
         
         return render_template('admin/users.html', 
@@ -127,18 +119,12 @@ def users():
 def user_detail(user_id):
     """View detailed information about a specific user"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = BKL_User.query.get_or_404(user_id)
         
-        # Get user's orders
-        orders = Order.query.filter_by(user_id=user.id).order_by(Order.order_date.desc()).all()
+        orders = BKL_Order.query.filter_by(user_id=user.id).order_by(BKL_Order.order_date.desc()).all()
+        favorites = BKL_Favorite.query.filter_by(user_id=user.id).order_by(BKL_Favorite.added_at.desc()).all()
+        feedbacks = BKL_Feedback.query.filter_by(user_id=user.id).order_by(BKL_Feedback.submitted_at.desc()).all()
         
-        # Get user's favorites
-        favorites = Favorite.query.filter_by(user_id=user.id).order_by(Favorite.added_at.desc()).all()
-        
-        # Get user's feedback
-        feedbacks = Feedback.query.filter_by(user_id=user.id).order_by(Feedback.submitted_at.desc()).all()
-        
-        # Calculate total spent
         total_spent = sum(float(order.total_amount) for order in orders if order.payment_status == 'Paid')
         
         return render_template('admin/user_detail.html', 
@@ -153,11 +139,9 @@ def user_detail(user_id):
 
 @bp.route('/users/make-admin/<int:user_id>', methods=['POST'])
 def make_admin(user_id):
-    """Grant admin privileges to a user"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = BKL_User.query.get_or_404(user_id)
         
-        # Prevent self-demotion
         if user.id == current_user.id:
             flash('You cannot change your own admin status.', 'error')
             return redirect(url_for('admin.users'))
@@ -173,11 +157,9 @@ def make_admin(user_id):
 
 @bp.route('/users/remove-admin/<int:user_id>', methods=['POST'])
 def remove_admin(user_id):
-    """Remove admin privileges from a user"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = BKL_User.query.get_or_404(user_id)
         
-        # Prevent self-demotion
         if user.id == current_user.id:
             flash('You cannot change your own admin status.', 'error')
             return redirect(url_for('admin.users'))
@@ -193,25 +175,20 @@ def remove_admin(user_id):
 
 @bp.route('/users/delete/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
-    """Delete a user and all associated data"""
     try:
-        user = User.query.get_or_404(user_id)
+        user = BKL_User.query.get_or_404(user_id)
         
-        # Prevent self-deletion
         if user.id == current_user.id:
             flash('You cannot delete your own account.', 'error')
             return redirect(url_for('admin.users'))
         
-        # Get user's full name for flash message
         user_name = user.full_name()
         
-        # Delete all related data
-        Order.query.filter_by(user_id=user.id).delete()
-        CartItem.query.filter_by(session_id=str(user.id)).delete()  # Fixed: session_id is string
-        Favorite.query.filter_by(user_id=user.id).delete()
-        Feedback.query.filter_by(user_id=user.id).delete()
+        BKL_Order.query.filter_by(user_id=user.id).delete()
+        BKL_CartItem.query.filter_by(session_id=str(user.id)).delete()
+        BKL_Favorite.query.filter_by(user_id=user.id).delete()
+        BKL_Feedback.query.filter_by(user_id=user.id).delete()
         
-        # Delete the user
         db.session.delete(user)
         db.session.commit()
         
@@ -225,9 +202,8 @@ def delete_user(user_id):
 
 @bp.route('/orders')
 def orders():
-    """Display all orders in the system"""
     try:
-        orders = Order.query.order_by(Order.order_date.desc()).all()
+        orders = BKL_Order.query.order_by(BKL_Order.order_date.desc()).all()
         return render_template('admin/orders.html', orders=orders)
     except Exception as e:
         flash(f'Error loading orders: {str(e)}', 'error')
@@ -235,9 +211,8 @@ def orders():
 
 @bp.route('/orders/<int:order_id>')
 def order_detail(order_id):
-    """View detailed information about a specific order"""
     try:
-        order = Order.query.get_or_404(order_id)
+        order = BKL_Order.query.get_or_404(order_id)
         return render_template('admin/order_detail.html', order=order)
     except Exception as e:
         flash(f'Error loading order details: {str(e)}', 'error')
@@ -245,9 +220,8 @@ def order_detail(order_id):
 
 @bp.route('/orders/update-status/<int:order_id>', methods=['POST'])
 def update_order_status(order_id):
-    """Update the status of an order"""
     try:
-        order = Order.query.get_or_404(order_id)
+        order = BKL_Order.query.get_or_404(order_id)
         new_status = request.form.get('status')
         
         if new_status in ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']:
@@ -264,10 +238,8 @@ def update_order_status(order_id):
 
 @bp.route('/debug-users')
 def debug_users():
-    """Debug route to check users in database"""
     try:
-        # Get all users
-        all_users = User.query.all()
+        all_users = BKL_User.query.all()
         user_list = []
         
         for user in all_users:
@@ -286,11 +258,9 @@ def debug_users():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Simple route to check admin access
 @bp.route('/check-access')
 @login_required
 def check_access():
-    """Check if current user has admin access"""
     return jsonify({
         'authenticated': current_user.is_authenticated,
         'user_id': current_user.id,

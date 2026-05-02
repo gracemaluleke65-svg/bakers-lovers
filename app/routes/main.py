@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from app import db
-from app.models import Product, Cart
+from app.models import BKL_Product, BKL_Cart
 from app.utils.cart_helper import get_cart
 import os
 
@@ -11,7 +11,7 @@ bp = Blueprint('main', __name__)
 @bp.route('/')
 def index():
     # Get featured products - fix decimal conversion
-    featured_products = Product.query.filter_by(available=True).order_by(func.random()).limit(3).all()
+    featured_products = BKL_Product.query.filter_by(available=True).order_by(func.random()).limit(3).all()
     
     # Convert prices to float to avoid SQLite decimal warnings
     for product in featured_products:
@@ -39,7 +39,6 @@ def terms():
 def privacy():
     return render_template('main/privacy.html')
 
-# Fixed - use @bp.route instead of @app.route
 @bp.route('/test-image')
 def test_image():
     from flask import current_app
