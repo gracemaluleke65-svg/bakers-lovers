@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import Coupon
+from app.models import BKL_Coupon
 from app.forms import CouponForm
 
 bp = Blueprint('coupons', __name__)
@@ -14,7 +14,7 @@ def index():
         flash('Admin access required.', 'error')
         return redirect(url_for('main.index'))
     
-    coupons = Coupon.query.all()
+    coupons = BKL_Coupon.query.all()
     return render_template('coupons/index.html', coupons=coupons)
 
 
@@ -27,7 +27,7 @@ def create():
     
     form = CouponForm()
     if form.validate_on_submit():
-        coupon = Coupon(
+        coupon = BKL_Coupon(
             code=form.code.data.upper(),
             discount_amount=form.discount_amount.data,
             is_percentage=form.is_percentage.data,
@@ -51,7 +51,7 @@ def edit(id):
         flash('Admin access required.', 'error')
         return redirect(url_for('main.index'))
     
-    coupon = Coupon.query.get_or_404(id)
+    coupon = BKL_Coupon.query.get_or_404(id)
     form = CouponForm(obj=coupon)
     
     if form.validate_on_submit():
@@ -76,7 +76,7 @@ def delete(id):
         flash('Admin access required.', 'error')
         return redirect(url_for('main.index'))
     
-    coupon = Coupon.query.get_or_404(id)
+    coupon = BKL_Coupon.query.get_or_404(id)
     db.session.delete(coupon)
     db.session.commit()
     

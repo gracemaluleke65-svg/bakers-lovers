@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from flask_wtf.csrf import validate_csrf
 from wtforms import ValidationError
 from app import db
-from app.models import Favorite, Product
+from app.models import BKL_Favorite, BKL_Product
 
 bp = Blueprint('favorites', __name__)
 
@@ -11,7 +11,7 @@ bp = Blueprint('favorites', __name__)
 @bp.route('/')
 @login_required
 def index():
-    favorites = Favorite.query.filter_by(user_id=current_user.id).order_by(Favorite.added_at.desc()).all()
+    favorites = BKL_Favorite.query.filter_by(user_id=current_user.id).order_by(BKL_Favorite.added_at.desc()).all()
     return render_template('favorites/index.html', favorites=favorites)
 
 
@@ -27,9 +27,9 @@ def toggle(product_id):
     except ValidationError:
         return jsonify({'error': 'Invalid CSRF token', 'favorited': False}), 400
     
-    product = Product.query.get_or_404(product_id)
+    product = BKL_Product.query.get_or_404(product_id)
     
-    existing = Favorite.query.filter_by(
+    existing = BKL_Favorite.query.filter_by(
         user_id=current_user.id,
         product_id=product_id
     ).first()
@@ -39,7 +39,7 @@ def toggle(product_id):
         db.session.commit()
         return jsonify({'favorited': False})
     else:
-        favorite = Favorite(
+        favorite = BKL_Favorite(
             user_id=current_user.id,
             product_id=product_id
         )

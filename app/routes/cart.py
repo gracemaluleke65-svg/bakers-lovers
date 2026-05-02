@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models import Product, CartItem, Coupon
+from app.models import BKL_Product, BKL_CartItem, BKL_Coupon
 from app.utils.cart_helper import get_cart, save_cart, clear_cart
 from datetime import datetime
 
@@ -41,7 +41,7 @@ def index():
 
 @bp.route('/add/<int:product_id>', methods=['POST'])
 def add(product_id):
-    product = Product.query.get_or_404(product_id)
+    product = BKL_Product.query.get_or_404(product_id)
     quantity = request.form.get('quantity', 1, type=int)
     
     if not product.available or product.stock < 1 or quantity < 1:
@@ -73,7 +73,7 @@ def remove(product_id):
 @bp.route('/update/<int:product_id>', methods=['POST'])
 def update_item_ajax(product_id):
     """AJAX endpoint for updating cart items"""
-    product = Product.query.get_or_404(product_id)
+    product = BKL_Product.query.get_or_404(product_id)
     quantity = request.form.get('quantity', 1, type=int)
     
     if quantity < 1:
@@ -85,7 +85,7 @@ def update_item_ajax(product_id):
     cart = get_cart()
     
     # Update the cart item
-    cart_item = CartItem.query.filter_by(
+    cart_item = BKL_CartItem.query.filter_by(
         session_id=cart.session_id,
         product_id=product_id
     ).first()
@@ -139,9 +139,9 @@ def apply_coupon():
         return redirect(url_for('cart.index'))
     
     # Find coupon (case-insensitive)
-    coupon = Coupon.query.filter(
-        Coupon.code.ilike(code),
-        Coupon.active == True
+    coupon = BKL_Coupon.query.filter(
+        BKL_Coupon.code.ilike(code),
+        BKL_Coupon.active == True
     ).first()
     
     if not coupon or not coupon.is_valid():

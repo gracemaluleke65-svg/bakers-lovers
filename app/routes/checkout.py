@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models import Order, OrderItem, Product
+from app.models import BKL_Order, BKL_OrderItem, BKL_Product
 from app.utils.cart_helper import get_cart, clear_cart
 from app.utils.stripe_service import create_checkout_session
 import stripe
@@ -56,7 +56,7 @@ def create_order():
     try:
         for item in cart.items:
             # Use with_for_update to lock the row
-            product = Product.query.with_for_update().get(item.product_id)
+            product = BKL_Product.query.with_for_update().get(item.product_id)
             if not product:
                 flash('One or more products are no longer available.', 'error')
                 return redirect(url_for('checkout.index'))
@@ -83,7 +83,7 @@ def create_order():
         grand_total = float(cart.total) - discount
         
         # Create order
-        order = Order(
+        order = BKL_Order(
             user_id=current_user.id,
             delivery_address=delivery_address,
             total_amount=grand_total,
@@ -95,7 +95,7 @@ def create_order():
         
         # Create order items and update stock
         for item in cart.items:
-            order_item = OrderItem(
+            order_item = BKL_OrderItem(
                 order_id=order.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
@@ -104,7 +104,7 @@ def create_order():
             db.session.add(order_item)
             
             # Update stock
-            product = Product.query.get(item.product_id)
+            product = BKL_Product.query.get(item.product_id)
             product.stock -= item.quantity
         
         # Create Stripe session with proper parameters
@@ -149,7 +149,7 @@ def success():
         flash('Invalid order ID.', 'error')
         return redirect(url_for('main.index'))
     
-    order = Order.query.filter_by(
+    order = BKL_Order.query.filter_by(
         id=order_id,
         user_id=current_user.id
     ).first_or_404()

@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
-from app.models import Order, OrderItem, Product
-from app.forms import OrderForm  # Removed duplicate form definitions
+from app.models import BKL_Order, BKL_OrderItem, BKL_Product
+from app.forms import OrderForm
 
 bp = Blueprint('orders', __name__)
 
@@ -10,16 +10,16 @@ bp = Blueprint('orders', __name__)
 @login_required
 def index():
     if current_user.is_admin:
-        orders = Order.query.order_by(Order.order_date.desc()).all()
+        orders = BKL_Order.query.order_by(BKL_Order.order_date.desc()).all()
     else:
-        orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.order_date.desc()).all()
+        orders = BKL_Order.query.filter_by(user_id=current_user.id).order_by(BKL_Order.order_date.desc()).all()
     
     return render_template('orders/index.html', orders=orders)
 
 @bp.route('/<int:id>')
 @login_required
 def details(id):
-    order = Order.query.get_or_404(id)
+    order = BKL_Order.query.get_or_404(id)
     
     # Check if user owns the order or is admin
     if not current_user.is_admin and order.user_id != current_user.id:
@@ -35,7 +35,7 @@ def change_status(id):
         flash('Admin access required.', 'error')
         return redirect(url_for('orders.index'))
     
-    order = Order.query.get_or_404(id)
+    order = BKL_Order.query.get_or_404(id)
     new_status = request.form.get('status')
     
     if new_status in ['Pending', 'Baking', 'Shipped', 'Delivered', 'Cancelled']:
@@ -53,7 +53,7 @@ def change_status(id):
 @bp.route('/<int:id>/cancel', methods=['POST'])
 @login_required
 def cancel(id):
-    order = Order.query.get_or_404(id)
+    order = BKL_Order.query.get_or_404(id)
     
     # Check if user owns the order
     if order.user_id != current_user.id:
@@ -83,7 +83,7 @@ def cancel(id):
 @bp.route('/<int:id>/delete', methods=['GET', 'POST'])
 @login_required
 def delete(id):
-    order = Order.query.get_or_404(id)
+    order = BKL_Order.query.get_or_404(id)
     
     # Check if user is admin (only admins can delete orders)
     if not current_user.is_admin:
@@ -119,7 +119,7 @@ def delete(id):
 @bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(id):
-    order = Order.query.get_or_404(id)
+    order = BKL_Order.query.get_or_404(id)
     
     # Check if user is admin (only admins can edit orders)
     if not current_user.is_admin:
