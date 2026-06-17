@@ -250,21 +250,27 @@
                 </table>
             </div>
 
-            <!-- COUPON BOX -->
+            <!-- COUPON BOX – with discount hint -->
             <div class="row mb-4">
-                <div class="col-md-4">
-                    <form action="{{ url_for('cart.apply_coupon') }}" method="POST" class="d-flex">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input name="code" class="form-control form-control-sm me-2" placeholder="Coupon code" required>
-                        <button class="btn btn-sm btn-primary">Apply</button>
-                    </form>
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category if category != 'error' else 'danger' }} mt-2">{{ message }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded">
+                        <p class="text-muted small mb-2">
+                            <i class="fa fa-info-circle text-primary me-1"></i>
+                            💡 Use code <strong>BAKERS10</strong> for 10% off your order!
+                        </p>
+                        <form action="{{ url_for('cart.apply_coupon') }}" method="POST" class="d-flex">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input name="code" class="form-control form-control-sm me-2" placeholder="Enter coupon code" required>
+                            <button class="btn btn-sm btn-primary">Apply</button>
+                        </form>
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} mt-2">{{ message }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                    </div>
                 </div>
             </div>
 
